@@ -19,6 +19,8 @@ There are a number of ways to let the Vagrant box ("docbuilder") assist you for 
 
 All programs have to be available in your current searchpath.
 
+Clone this repository somewhere to your local machine, as you'll need all files.
+
 ## Initial setup
 Regardless of your choice, you'll have to configure some things by hand. That's a one-time operation.
 
