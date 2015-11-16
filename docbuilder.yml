@@ -1,0 +1,2 @@
+host: docbuilder
+command: cd /work; docbuilder.py
