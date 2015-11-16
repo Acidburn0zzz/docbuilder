@@ -94,4 +94,7 @@ The command `vagrant up` will take care of starting the machine again.
 
 
 
-As this is BETA quality - Please send all feedback to peter.mosmans@go-forward.net -  Thanks !
+As this is BETA quality - Feedback, bugreports and issues are all welcome -  Thanks !
+
+
+Peter Mosmans
