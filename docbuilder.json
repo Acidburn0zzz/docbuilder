@@ -1,0 +1,13 @@
+{
+    "name" : "ROS/docbuilder",
+    "description" : "This Debian Jessie based box contains the document builder toolchain",
+    "versions" :[{
+        "version": "0.1.0",
+        "providers": [{
+            "name": "virtualbox",
+            "url": "http://www.radicallyopensecurity.com/docbuilder-0.1.0.box",
+            "checksum_type": "sha1",
+            "checksum": "8aeae751979c478b201e593d4eb5758f918e1295"
+        }]
+    }]
+}
