@@ -56,7 +56,7 @@ def main():
     if len(options):
         command = '{0} {1}'.format(command, ' '.join(options))
     try:
-        exitcode = proxy_vagrant.execute_command(host, command)
+        sys.exit(proxy_vagrant.execute_command(host, command))
     except OSError as exception:
         print_exit('[-] Could not open file: {0}'.
                    format(exception.strerror), exception.errno)
