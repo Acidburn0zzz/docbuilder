@@ -17,6 +17,7 @@ from __future__ import print_function
 import mmap
 import re
 import subprocess
+import sys
 import xml.etree.ElementTree
 import xml.sax
 
@@ -26,6 +27,10 @@ DOCBUILDER = False
 # Snippets may contain XML fragments without the proper entities
 SNIPPETDIR = '/snippets/'
 REPORT = 'Report/source/report.xml'
+# show a warning when line is longer than WARN_LINE
+WARN_LINE = 100
+# Maximum line length for lines inside <pre> tags
+MAX_LINE = 127
 
 
 if DOCBUILDER:
@@ -77,12 +82,33 @@ def validate_xml(filename):
     try:
         with open(filename, 'rb') as xml_file:
             xml.sax.parse(xml_file, xml.sax.ContentHandler())
+        validate_long_lines(xml.etree.ElementTree.parse(filename))
     except xml.sax.SAXException as exception:
         print('[-] validating {0} failed ({1})'.format(filename, exception))
         result = False
     except IOError as exception:
         print('[-] validating {0} failed ({1})'.format(filename, exception))
         result = False
+    return result
+
+
+def validate_long_lines(tree):
+    """
+    Checks whether <pre> section contains lines longer than MAX_LINE characters
+    Returns True if the file validated successfully.
+    """
+    result = True
+    root = tree.getroot()
+    for pre_section in root.iter('pre'):
+        for line in pre_section.text.splitlines():
+            if len(line.strip()) > WARN_LINE:
+                if len(line.strip()) > MAX_LINE:
+                    print('[-] Line inside <pre> too long: {0}'.
+                          format(line.strip()))
+                else:
+                    print('[*] Line inside <pre> long ({0} characters)'.
+                          format(len(line.strip())))
+            result = False
     return result
 
 
@@ -99,8 +125,12 @@ def report_string(report_file):
     """
     Return the report_file into a big memory mapped string.
     """
-    report = open(report_file)
-    return mmap.mmap(report.fileno(), 0, access=mmap.ACCESS_READ)
+    try:
+        report = open(report_file)
+        return mmap.mmap(report.fileno(), 0, access=mmap.ACCESS_READ)
+    except IOError as exception:
+        print('[-] Could not open {0} ({1})'.format(report_file, exception))
+        sys.exit(-1)
 
 
 def cross_check_files(report_text):
