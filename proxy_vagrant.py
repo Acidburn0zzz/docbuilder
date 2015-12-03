@@ -19,21 +19,64 @@ import subprocess
 from subprocess import PIPE
 import sys
 
+    
+def vagrant_status(hostname):
+    """
+    Returns global ID and status of hostname.
 
-def vagrant_connection(hostname, filename):
+    Arguments:
+    - `hostname`: hostname of Vagrant box
     """
-    Obtains a ssh configuration file from the global Vagrant store.
-    """
-    if os.path.exists(filename):
-        return True
-    result = False
+    status = 'unknown'
+    vagrant_id = ''
     cmd = ['vagrant', 'global-status']
     try:
         process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
         stdout, _stderr = process.communicate()
         if not process.returncode:
-            vagrant_id = re.findall(r'([0-9a-f]*)\s+{0}\s+virtualbox\s+running'.
-                                    format(hostname), stdout)
+            line = re.findall(r'([0-9a-f]*)\s+{0}\s+virtualbox\s+(\w+)\s'.
+                              format(hostname), stdout)
+            if line:
+                vagrant_id, status = line[0]
+    except OSError as exception:
+        print_exit('[-] Could not find vagrant executable: {0}'.
+                   format(exception.strerror), exception.errno)
+    return vagrant_id, status
+
+
+def vagrant_start(vagrant_id):
+    """
+    Starts a Vagrant box.
+    """
+    cmd = ['vagrant', 'up', vagrant_id]
+    try:
+        print('[+] Starting up machine')
+        process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
+        _stdout, stderr = process.communicate()
+        result = process.returncode
+        if result:
+            print_exit('[-] Could not start Vagrant machine ({0})'.
+                       format(stderr), result)
+    except OSError as exception:
+        print_exit('[-] Could not find vagrant executable: {0}'.
+                   format(exception.strerror), exception.errno)
+    return result
+
+
+def vagrant_connection(hostname, filename):
+    """
+    Obtains a ssh configuration file from the global Vagrant store.
+    """
+    if os.path.isfile(filename):
+        return True
+    result = False
+    try:
+        vagrant_id, status = vagrant_status(hostname)
+        print('[*] Vagrant status of {0} is {1}'.format(hostname, status))
+        if status in ('aborted', 'poweroff'):
+            vagrant_start(vagrant_id)
+            vagrant_id, status = vagrant_status(hostname)
+        if status in 'running':
             cmd = ['vagrant', 'ssh-config', vagrant_id]
             process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
             stdout, _stderr = process.communicate()
@@ -55,6 +98,7 @@ def execute_ssh(config_file, hostname, command):
     process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
     print_stdoutput(stdout, stderr)
+
     return process.returncode
 
 
@@ -72,8 +116,17 @@ def print_stdoutput(stdout, stderr):
     """
     if stdout:
         print(stdout.strip())
+        sys.stdout.flush()
     if stderr:
-        print(stderr.strip(), file=sys.stderr)
+        print_error(stderr.strip())
+
+
+def print_error(text):
+    """
+    Prints output to error stream.
+    """
+    print(text, file=sys.stderr)
+    sys.stderr.flush()
 
 
 def execute_command(hostname, command):
@@ -82,8 +135,8 @@ def execute_command(hostname, command):
     """
     config_file = hostname + '.ssh-config'
     if not vagrant_connection(hostname, config_file):
-        print_exit('[-] Could not obtain Vagrant ssh connection details for {0}'.
-                   format(hostname), -1)
+        print_error('[-] Could not connect to Vagrant instance of {0}'.
+                    format(hostname))
     return execute_ssh(config_file, hostname, command)
 
 
