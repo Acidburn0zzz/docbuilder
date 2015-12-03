@@ -2,7 +2,7 @@
 # vi: set ft=ruby :
 
 # Vagrantfile for docbuilder
-# Version 0.1
+# Version 0.2
 
 Vagrant.configure(2) do |config|
   # Mount your local folder to a Vagrant box folder
@@ -25,11 +25,11 @@ Vagrant.configure(2) do |config|
   # are unique.
   config.vm.synced_folder "Y:/", "/work"
 
-  # Please don't modify the values below  
+  # Please don't modify the values below
   config.vm.box = "ROS/docbuilder"
   config.vm.define "docbuilder"
   config.vm.box_url = "docbuilder.json"
   config.vm.box_check_update = false
-  config.vbguest.auto_update = false
   config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.boot_timeout = 600
 end
