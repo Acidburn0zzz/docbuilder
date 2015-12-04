@@ -13,20 +13,11 @@ the Free Software Foundation, either version 3 of the License, or
 from __future__ import absolute_import
 from __future__ import print_function
 
+import re
 import subprocess
 import sys
 
 import proxy_vagrant
-
-
-try:
-    import yaml
-except ImportError:
-    print('[-] Failed: missing import module PyYAML', file=sys.stderr)
-    print('    Install using sudo apt-get install python-yaml')
-    print('               or sudo yum install python-yaml')
-    print('               or sudo python -m easy_install pyyaml')
-    sys.exit(-1)
 
 
 CONFIG_FILE = 'docbuilder.yml'
@@ -87,7 +78,7 @@ def preflight_checks():
         if command_fails(['vagrant', 'up']):
             print_exit('[-] Could not start Vagrant box', -5)
     print('[*] Trying to read local configuration... ', end='')
-    _host, _command = read_config()
+    _host, _command = read_config(CONFIG_FILE)
     print ('OK')
     print('[+] All checks successful. Ready to rock.')
     print(r"""
@@ -117,20 +108,20 @@ _88o,,od8P88    .d888888o88oo,.__888_,o8P' 888oo,__ 888b "88bo,
     return True
 
 
-def read_config():
+def read_config(filename):
     """
     Reads host and command parameters from configuration file.
     """
     try:
-        config = yaml.safe_load(open(CONFIG_FILE))
-        host = config['host']
-        command = config['command']
+        with open(filename, 'r') as config_file:
+            contents = config_file.read()
+            host = re.findall(r'{0}:\s?(.*)'.format('host'), contents)[0]
+            command = re.findall(r'{0}:\s?(.*)'.format('command'), contents)[0]
     except IOError as exception:
         print_exit('[-] Could not open configuration file {0}: {1}'.
-                   format(CONFIG_FILE, exception.strerror), exception.errno)
-    except KeyError as exception:
-        print_exit('[-] Could not find host, and/or command variables in {0}'.
-                   format(CONFIG_FILE), -1)
+                   format(filename, exception.strerror), exception.errno)
+    except IndexError as exception:
+        print_exit('[-] Missing variables in {0}'.format(filename), -1)
     return host, command
 
 
@@ -141,7 +132,7 @@ def main():
     options = sys.argv[1:]
     if len(options) == 1 and 'check' in sys.argv[1]:
         sys.exit(preflight_checks())
-    host, command = read_config()
+    host, command = read_config(CONFIG_FILE)
     if len(options):
         command = '{0} {1}'.format(command, ' '.join(options))
     try:
