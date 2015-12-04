@@ -19,7 +19,7 @@ import subprocess
 from subprocess import PIPE
 import sys
 
-    
+
 def vagrant_status(hostname):
     """
     Returns global ID and status of hostname.
@@ -27,13 +27,14 @@ def vagrant_status(hostname):
     Arguments:
     - `hostname`: hostname of Vagrant box
     """
+    # pylint: disable=unused-variable
     status = 'unknown'
     vagrant_id = ''
     cmd = ['vagrant', 'global-status']
     try:
         process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
         stdout, _stderr = process.communicate()
-        if not process.returncode:
+        if not process.returncode and stdout:
             line = re.findall(r'([0-9a-f]*)\s+{0}\s+virtualbox\s+(\w+)\s'.
                               format(hostname), stdout)
             if line:
@@ -48,6 +49,7 @@ def vagrant_start(vagrant_id):
     """
     Starts a Vagrant box.
     """
+    # pylint: disable=unused-variable
     cmd = ['vagrant', 'up', vagrant_id]
     try:
         print('[+] Starting up machine')
@@ -67,6 +69,7 @@ def vagrant_connection(hostname, filename):
     """
     Obtains a ssh configuration file from the global Vagrant store.
     """
+    # pylint: disable=unused-variable
     if os.path.isfile(filename):
         return True
     result = False
@@ -98,7 +101,6 @@ def execute_ssh(config_file, hostname, command):
     process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
     print_stdoutput(stdout, stderr)
-
     return process.returncode
 
 
