@@ -13,10 +13,20 @@ the Free Software Foundation, either version 3 of the License, or
 from __future__ import absolute_import
 from __future__ import print_function
 
+import subprocess
 import sys
 
 import proxy_vagrant
-import yaml
+
+
+try:
+    import yaml
+except ImportError:
+    print('[-] Failed: missing import module PyYAML', file=sys.stderr)
+    print('    Install using sudo apt-get install python-yaml')
+    print('               or sudo yum install python-yaml')
+    print('               or sudo python -m easy_install pyyaml')
+    sys.exit(-1)
 
 
 CONFIG_FILE = 'docbuilder.yml'
@@ -28,6 +38,83 @@ def print_exit(text, result):
     """
     print(text, file=sys.stderr)
     sys.exit(result)
+
+
+def command_fails(cmd):
+    """
+    Executes command.
+    Returns True if command failed.
+    """
+    stdout = ''
+    stderr = ''
+    try:
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+        result = process.returncode
+    except OSError as exception:
+        result = -1
+        print('could not execute {0}'.format(cmd))
+        print('[-] {0}'.format(exception.strerror), file=sys.stderr)
+    if result:
+        print('FAILED')
+        print(stdout, stderr)
+    else:
+        print('OK')
+    return result
+
+
+def preflight_checks():
+    """
+    Checks if all tools are there.
+    Returns 0 if everything went okilydokily
+    """
+    #pylint: disable=unused-variable
+    print('[*] Checking Vagrant... ', end='')
+    if command_fails(['vagrant', 'version']):
+        print_exit('[-] Could not execute Vagrant', -1)
+        #    print('[*] Checking Vagrant paths... ', end='')
+        #    if configuration_fails('Vagrantfile'):
+        #        print_exit('[-] Could not start VirtualBox', -5)
+    print('[*] Checking VirtualBox... ', end='')
+    if command_fails(['vboxmanage', '--version']):
+        print_exit('[-] Could not start VirtualBox', -5)
+    print('[*] Checking whether docbuilder is started... ', end='')
+    _vagrant_id, status = proxy_vagrant.vagrant_status('docbuilder')
+    print(status)
+    if status not in 'running':
+        print('[*] Trying to start Vagrant box... ', end='')
+        if command_fails(['vagrant', 'up']):
+            print_exit('[-] Could not start Vagrant box', -5)
+    print('[*] Trying to read local configuration... ', end='')
+    _host, _command = read_config()
+    print ('OK')
+    print('[+] All checks successful. Ready to rock.')
+    print(r"""
+     ::::::..
+      ;;; ``;;
+       [[[,/[['
+        $$$$$$c
+         888  "88,
+:::::::-. MMM ... "W"   .,-:::::
+ ;;,   `';, .;;;;;;;.  ,;;;'````'
+ `[[     [[,[[     \[[,[[[
+  $$,    $$$$$,     $$$$$$
+  888_,o8P'"888,_ _,88P`88bo,__,o,
+  MMMMP"`    "YMMMMMP"   "YUMMMMMP"
+                .::::::.
+                 ;;;`    `
+                  '[==/[[\,
+                           $
+                   88b    dP
+                     "YMmMY"
+:::::::.   ...    :::::: :::   :::::::-.  .,:::::: :::::::..
+ ;;;'';;'  ;;     ;;;;;; ;;;    ;;,   `';,;;;;'''' ;;;;``;;;;
+ [[[__[[\.[['     [[[[[[ [[[    `[[     [[ [[cccc   [[[,/[[['
+ $$""\""Y$$$$      $$$$$$ $$'     $$,    $$ $$"\"""   $$$$$$c
+_88o,,od8P88    .d888888o88oo,.__888_,o8P' 888oo,__ 888b "88bo,
+""YUMMMP"  "YmmMMMM""MMM""\""YUMMMMMMMP"`   ""\""YUMMMMMMM   "W"v 0.1.1 [PGCM]""")
+    return True
 
 
 def read_config():
@@ -42,7 +129,7 @@ def read_config():
         print_exit('[-] Could not open configuration file {0}: {1}'.
                    format(CONFIG_FILE, exception.strerror), exception.errno)
     except KeyError as exception:
-        print_exit('[-] Could not find host and/or command variables in {0}'.
+        print_exit('[-] Could not find host, and/or command variables in {0}'.
                    format(CONFIG_FILE), -1)
     return host, command
 
@@ -52,6 +139,8 @@ def main():
     Executes COMMAND on BOX.
     """
     options = sys.argv[1:]
+    if len(options) == 1 and 'check' in sys.argv[1]:
+        sys.exit(preflight_checks())
     host, command = read_config()
     if len(options):
         command = '{0} {1}'.format(command, ' '.join(options))
