@@ -118,8 +118,8 @@ def validate_xml(filename, check_spelling=False, learn=True):
         with open(filename, 'rb') as xml_file:
             xml.sax.parse(xml_file, xml.sax.ContentHandler())
         tree = xml.etree.ElementTree.parse(filename)
-        if check_spelling:
-            result = validate_spelling(tree, learn)
+        result = check_spelling and validate_spelling(tree, learn)
+        validate_type(tree, filename)
         result = validate_long_lines(tree) and result
     except (xml.sax.SAXException, xml.etree.ElementTree.ParseError) as exception:
         print('[-] validating {0} failed ({1})'.format(filename, exception))
@@ -128,6 +128,41 @@ def validate_xml(filename, check_spelling=False, learn=True):
         print('[-] validating {0} failed ({1})'.format(filename, exception))
         result = False
     return result
+
+
+def get_all_text(node):
+    """
+    Retrieves all text within tags.
+    """
+    text_string = node.text or ''
+    for element in node:
+        text_string += get_all_text(element)
+    text_string += node.tail
+    return text_string.strip()
+
+
+def validate_type(tree, xml_type):
+    """
+    Performs specific checks based on type.
+    Currently only Finding and Non-Finding are supported.
+    """
+    root = tree.getroot()
+    if not 'Finding' in xml_type:
+        return
+    for title in root.iter('title'):
+        full_text = get_all_text(title)
+        if not full_text:
+            print('[-] Title tag missing')
+        else:
+            if full_text != ' '.join(word[0].upper() + word[1:] for word in full_text.split()):
+                print('[-] Title missing capitalization: {0}'.format(full_text))
+    for description in root.iter('description'):
+        full_text = get_all_text(description)
+        if not full_text:
+            print('[-] Description tag missing')
+        else:
+            if full_text[-1] != '.':
+                print('[-] Description missing final dot: {0}'.format(full_text))
 
 
 def validate_long_lines(tree):
@@ -143,7 +178,7 @@ def validate_long_lines(tree):
                 if len(line.strip()) > WARN_LINE:
                     if len(line.strip()) > MAX_LINE:
                         print('[-] Line inside <pre> too long: {0}'.
-                              format(line.strip()))
+                              format(line.encode('utf-8').strip()))
                     else:
                         print('[*] Line inside <pre> long ({0} characters)'.
                               format(len(line.strip())))
