@@ -46,10 +46,14 @@ the Free Software Foundation, either version 3 of the License, or
     parser.add_argument('--fop-config', action='store',
                         default='/usr/local/bin/fop-1.1/conf/rosfop.xconf',
                         help='fop configuration file (default /usr/local/bin/fop-1.1/conf/rosfop.xconf')
-    parser.add_argument('-p', '--path', action='store', default='./Report',
-                        help='report path (default: ./Report)')
-    parser.add_argument('-o', '--output', action='store',
-                        help='output file name')
+    parser.add_argument('-f', '--fop', action='store', default='./Report/target/report.fo',
+                        help='intermediate fop output file (default: ./Report/target/report.fo)')
+    parser.add_argument('-i', '--input', action='store', default='./Report/source/report.xml',
+                        help='input file (default: ./Report/source/report.xml)')
+    parser.add_argument('-x', '--xslt', action='store', default='./Report/xslt/content.xsl',
+                        help='input file (default: ./Report/xslt/auto.xsl)')
+    parser.add_argument('-o', '--output', action='store', default='./Report/target/latest.pdf',
+                        help='output file name (default: ./Report/target/latest.pdf')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='increase output verbosity')
     parser.add_argument('-w', '--warnings', action='store_true',
@@ -67,7 +71,7 @@ the Free Software Foundation, either version 3 of the License, or
     else:
         verboseprint = lambda *a: None
         verboseerror = lambda *a: None
-    return args.path, args.output, args.fop_config, args.clobber
+    return args.input, args.xslt, args.fop, args.output, args.fop_config, args.clobber
 
 
 def print_output(stdout, stderr):
@@ -143,12 +147,7 @@ def main():
     result = -1
     fop_binary = '/usr/local/bin/fop-1.1/fop'
     saxon_binary = '/usr/local/bin/saxon/saxon9he.jar'
-    project_home, output_file, fop_config, clobber = parse_arguments()
-    if not output_file:
-        output_file = project_home + '/target/latest.pdf'
-    input_file = project_home + '/source/report.xml'
-    xsl_file = project_home + '/xslt/content.xsl'
-    fop_output = project_home + '/target/report.fo'
+    input_file, xsl_file, fop_output, output_file, fop_config, clobber = parse_arguments()
     if not os.path.isfile(input_file):
         print_exit('[-] Cannot find input file {0}'.format(input_file), result)
     try:
