@@ -192,7 +192,7 @@ def get_type(type_path):
     """
     return [filename for filename in all_files() if (
         filename.lower().endswith('.xml') and
-        re.search('^{0}'.format(type_path), filename))]
+        re.search('^{0}'.format(type_path.lower()), filename))]
 
 
 def validate_master(filename):
@@ -236,7 +236,7 @@ def cross_check_files(report_text):
     Returns True if the checks were successful.
     """
     result = True
-    for type_path in ['Findings', 'Non-Findings']:
+    for type_path in ['Scans', 'Findings', 'Non-Findings']:
         for item in get_type(type_path):
             if report_text.find(item) == -1:
                 result = False
