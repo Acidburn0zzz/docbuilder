@@ -64,24 +64,21 @@ def preflight_checks():
     print('[*] Checking Vagrant... ', end='')
     if command_fails(['vagrant', 'version']):
         print_exit('[-] Could not execute Vagrant', -1)
-        #    print('[*] Checking Vagrant paths... ', end='')
-        #    if configuration_fails('Vagrantfile'):
-        #        print_exit('[-] Could not start VirtualBox', -5)
     print('[*] Checking VirtualBox... ', end='')
     if command_fails(['vboxmanage', '--version']):
         print_exit('[-] Could not start VirtualBox', -5)
     print('[*] Checking whether docbuilder is started... ', end='')
-    _vagrant_id, status = proxy_vagrant.vagrant_status('docbuilder')
+    vagrant_id, status = proxy_vagrant.vagrant_status('docbuilder')
     print(status)
     if status not in 'running':
         print('[*] Trying to start Vagrant box... ', end='')
-        if command_fails(['vagrant', 'up']):
+        if command_fails(['vagrant', 'up', vagrant_id]):
             print_exit('[-] Could not start Vagrant box', -5)
     print('[*] Trying to read local configuration... ', end='')
     _host, _command = read_config(CONFIG_FILE)
     print ('OK')
     print('[+] All checks successful. Ready to rock.')
-    print(r"""
+    print(r'''
      ::::::..
       ;;; ``;;
        [[[,/[['
@@ -100,11 +97,11 @@ def preflight_checks():
                    88b    dP
                      "YMmMY"
 :::::::.   ...    :::::: :::   :::::::-.  .,:::::: :::::::..
- ;;;'';;'  ;;     ;;;;;; ;;;    ;;,   `';,;;;;'''' ;;;;``;;;;
- [[[__[[\.[['     [[[[[[ [[[    `[[     [[ [[cccc   [[[,/[[['
- $$""\""Y$$$$      $$$$$$ $$'     $$,    $$ $$"\"""   $$$$$$c
-_88o,,od8P88    .d888888o88oo,.__888_,o8P' 888oo,__ 888b "88bo,
-""YUMMMP"  "YmmMMMM""MMM""\""YUMMMMMMMP"`   ""\""YUMMMMMMM   "W"v 0.1.1 [PGCM]""")
+ ;;;'';;'  ;;     ;;;;;; ;;;    ;;,   `';,;;;;'' ' ;;;;``;;;;
+ [[[__[[\.[['     [[[[[[ [[[   `[[     [[ [[cccc   [[[,/[[['
+ $$""""Y$$$$      $$$$$$ $$'    $$,    $$ $$"\"""   $$$$$$c
+_88o,,od8P88    .d888888o88oo,._888_,o8P' 888oo,__ 888b "88bo,
+""YUMMMP"  "YmmMMMM""MMM""""YUMMMMMMMP"`   """"YUMMMMMMM   "W"v 0.1.1 [PGCM]''')
     return True
 
 
