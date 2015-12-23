@@ -55,25 +55,35 @@ def command_fails(cmd):
     return result
 
 
-def preflight_checks():
+def preflight_checks(rerun=False):
     """
     Checks if all tools are there.
-    Returns 0 if everything went okilydokily
+    Exits with 0 if everything went okilydokily
     """
     #pylint: disable=unused-variable
-    print('[*] Checking Vagrant... ', end='')
-    if command_fails(['vagrant', 'version']):
-        print_exit('[-] Could not execute Vagrant', -1)
-    print('[*] Checking VirtualBox... ', end='')
-    if command_fails(['vboxmanage', '--version']):
-        print_exit('[-] Could not start VirtualBox', -5)
+    if not rerun:
+        print('[*] Checking Vagrant... ', end='')
+        if command_fails(['vagrant', 'version']):
+            print_exit('[-] Could not execute Vagrant', -1)
+        print('[*] Checking VirtualBox... ', end='')
+        if command_fails(['vboxmanage', '--version']):
+            print_exit('[-] Could not start VirtualBox', -5)
     print('[*] Checking whether docbuilder is started... ', end='')
+    sys.stdout.flush()
     vagrant_id, status = proxy_vagrant.vagrant_status('docbuilder')
     print(status)
     if status not in 'running':
         print('[*] Trying to start Vagrant box... ', end='')
         if command_fails(['vagrant', 'up', vagrant_id]):
             print_exit('[-] Could not start Vagrant box', -5)
+    print('[*] Trying to connect to Vagrant box... ', end='')
+    sys.stdout.flush()
+    result = command_fails(['vagrant', 'ssh', vagrant_id, '-c', 'id'])
+    if result:
+        if rerun:
+            print_exit('[-] Failed', -6)
+        print('[*] Vagrant status could have been incorrect... rechecking')
+        preflight_checks(True)
     print('[*] Trying to read local configuration... ', end='')
     _host, _command = read_config(CONFIG_FILE)
     print ('OK')
@@ -102,7 +112,7 @@ def preflight_checks():
  $$""""Y$$$$      $$$$$$ $$'    $$,    $$ $$"\"""   $$$$$$c
 _88o,,od8P88    .d888888o88oo,._888_,o8P' 888oo,__ 888b "88bo,
 ""YUMMMP"  "YmmMMMM""MMM""""YUMMMMMMMP"`   """"YUMMMMMMM   "W"v 0.1.1 [PGCM]''')
-    return True
+    sys.exit(0)
 
 
 def read_config(filename):
@@ -128,7 +138,7 @@ def main():
     """
     options = sys.argv[1:]
     if len(options) == 1 and 'check' in sys.argv[1]:
-        sys.exit(preflight_checks())
+        preflight_checks()
     host, command = read_config(CONFIG_FILE)
     if len(options):
         command = '{0} {1}'.format(command, ' '.join(options))
