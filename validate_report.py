@@ -19,14 +19,18 @@ import os
 import re
 import subprocess
 import sys
-import xml.etree.ElementTree
 import xml.sax
+from lxml import etree as ElementTree
 
 
+# When set to True, the report will be automatically fixed
+AUTO_FIX = False
 # When set to True, the report will be validated using docbuilder
 DOCBUILDER = False
+# When set to True, incorrect files will be opened by the system (editor)
+OPEN_FILES = False
 # When set to True, the spelling will be checked
-SPELLING = True
+SPELLING = False
 VOCABULARY = 'project-vocabulary.pws'
 # Snippets may contain XML fragments without the proper entities
 SNIPPETDIR = '/snippets/'
@@ -56,7 +60,7 @@ def validate_spelling(tree, learn=True):
                                  ('personal', VOCABULARY))
         root = tree.getroot()
         for section in root.iter():
-            if section.text and section.tag not in ('a', 'monospace', 'pre'):
+            if section.text and isinstance(section.tag, basestring) and section.tag not in ('a', 'monospace', 'pre'):
                 for word in re.findall('([a-zA-Z]+\'?[a-zA-Z]+)', section.text):
                     if not speller.check(word):
                         if learn:
@@ -81,19 +85,45 @@ def all_files():
     return process.stdout.read().splitlines()
 
 
+def open_editor(filename):
+    if sys.platform in ('linux', 'linux2'):
+        editor = os.getenv('EDITOR')
+        if editor:
+            print('{0} {1}'.format(editor, filename))
+            sys.stdout.flush()
+            subprocess.call([editor, '"{0}"'.format(filename)], shell=True)
+        else:
+            subprocess.call('xdg-open', filename)
+    elif sys.platform == "darwin":
+        subprocess.call(['open', filename])
+    elif sys.platform == "win32":
+        os.system('"{0}"'.format(filename.replace('/', os.path.sep)))
+
+
 def validate_files(filenames, check_spelling=False, learn=True):
     """
     Checks file extensions and calls appropriate validator function.
     Returns True if all files validated succesfully.
     """
     result = True
+    master = ''
+    externals = []
     for filename in filenames:
         if (filename.lower().endswith('.xml') or
                 filename.lower().endswith('xml"')):
-            if SNIPPETDIR not in filename:
+            if True:
+#            if SNIPPETDIR not in filename:
                 if OFFERTE in filename or REPORT in filename:
-                    result = validate_master(filename) and result
-                result = validate_xml(filename, check_spelling, learn) and result
+                    master = filename
+                # try:
+                type_result, xml_type = validate_xml(filename, check_spelling, learn, AUTO_FIX)
+                result = result and type_result
+                if xml_type in ('scan', 'finding', 'non-finding'):
+                    externals.append(filename)
+#                except:
+#                    result = False
+    if len(master):
+        result = validate_master(master, externals) and result
     return result
 
 
@@ -107,27 +137,29 @@ def validate_report():
     return proxy_vagrant.execute_command(host, command)
 
 
-def validate_xml(filename, check_spelling=False, learn=True):
+def validate_xml(filename, check_spelling=False, learn=True, auto_fix=AUTO_FIX):
     """
     Validates XML file by trying to parse it.
     Returns True if the file validated successfully.
     """
     result = True
+    xml_type = ''
     print("[+] validating XML file: {0}".format(filename))
     try:
         with open(filename, 'rb') as xml_file:
             xml.sax.parse(xml_file, xml.sax.ContentHandler())
-        tree = xml.etree.ElementTree.parse(filename)
-        result = check_spelling and validate_spelling(tree, learn)
-        validate_type(tree, filename)
-        result = validate_long_lines(tree) and result
-    except (xml.sax.SAXException, xml.etree.ElementTree.ParseError) as exception:
+        tree = ElementTree.parse(filename, ElementTree.XMLParser(strip_cdata=False))
+        type_result, xml_type = validate_type(tree, filename, check_spelling, learn, auto_fix)
+        result = validate_long_lines(tree) and result and type_result
+        if OPEN_FILES and not result:
+            open_editor(filename)
+    except (xml.sax.SAXException, ElementTree.ParseError) as exception:
         print('[-] validating {0} failed ({1})'.format(filename, exception))
         result = False
     except IOError as exception:
         print('[-] validating {0} failed ({1})'.format(filename, exception))
         result = False
-    return result
+    return result, xml_type
 
 
 def get_all_text(node):
@@ -137,32 +169,86 @@ def get_all_text(node):
     text_string = node.text or ''
     for element in node:
         text_string += get_all_text(element)
-    text_string += node.tail
+    if node.tail:
+        text_string += node.tail
     return text_string.strip()
 
 
-def validate_type(tree, xml_type):
+def is_capitalized(string):
+    """
+    Checks whether all words start with a capital.
+    Returns True if that's the case.
+    """
+    return string.strip() == capitalize(string)
+
+
+def capitalize(string):
+    """
+    Capitalizes each letter
+    """
+    return' '.join(word[0].upper() + word[1:] for word in string.strip().split())
+
+
+def validate_type(tree, filename, check_spelling, learn, auto_fix):
     """
     Performs specific checks based on type.
     Currently only Finding and Non-Finding are supported.
     """
+    result = True
+    fix = False
     root = tree.getroot()
-    if not 'Finding' in xml_type:
-        return
-    for title in root.iter('title'):
-        full_text = get_all_text(title)
-        if not full_text:
-            print('[-] Title tag missing')
+    xml_type = root.tag
+    attributes = []
+    tags = []
+    if xml_type == 'pentest_report':
+        attributes = ['findingCode']
+    if xml_type == 'finding':
+        attributes = ['threatLevel', 'type', 'id']
+        tags = ['title', 'description', 'technicaldescription', 'impact', 'recommendation']
+    if xml_type == 'non-finding':
+        attributes = ['id']
+        tags = ['title']
+    if not len(attributes):
+        return result, xml_type
+    if check_spelling:
+        result = validate_spelling(tree, learn)
+    for attribute in attributes:
+        if attribute not in root.attrib:
+            print('[-] Missing obligatory attribute: {0}'.format(attribute))
+            if attribute == 'id':
+                root.set(attribute, filename)
+                fix = True
+            else:
+                result = False
         else:
-            if full_text != ' '.join(word[0].upper() + word[1:] for word in full_text.split()):
-                print('[-] Title missing capitalization: {0}'.format(full_text))
-    for description in root.iter('description'):
-        full_text = get_all_text(description)
-        if not full_text:
-            print('[-] Description tag missing')
-        else:
-            if full_text[-1] != '.':
-                print('[-] Description missing final dot: {0}'.format(full_text))
+            if attribute == 'threatLevel' and root.attrib[attribute] not in ('Low', 'Moderate', 'Elevated', 'High', 'Extreme'):
+                print('[-] threatLevel is not Low, Moderate, High, Elevated or Extreme: {0}'.format(root.attrib[attribute]))
+                result = False
+            if attribute == 'type' and not is_capitalized(root.attrib[attribute]):
+                print('[-] Type missing capitalization: {0}'.format(root.attrib[attribute]))
+                root.attrib[attribute] = capitalize(root.attrib[attribute])
+                fix = True
+    for tag in tags:
+        if root.find(tag) is None:
+            print('[-] Missing tag: {0}'.format(tag))
+            result = False
+            continue
+        if not get_all_text(root.find(tag)):
+            print('[-] Empty tag: {0}'.format(tag))
+            result = False
+            continue
+        if tag == 'title' and not is_capitalized(root.find(tag).text):
+            print('[-] Title missing capitalization: {0}'.format(root.find(tag).text))
+            root.find(tag).text = capitalize(root.find(tag).text)
+            result = False
+        if tag == 'description' and get_all_text(root.find(tag)).strip()[-1] != '.':
+            print('[*] Description missing final dot: {0}'.format(get_all_text(root.find(tag))))
+            root.find(tag).text = get_all_text(root.find(tag)).strip() + '.'
+            fix = True
+    if auto_fix and fix:
+        print('[+] Automatically fixed')
+        tree.write(filename)
+    return (result and not fix), xml_type
 
 
 def validate_long_lines(tree):
@@ -186,33 +272,24 @@ def validate_long_lines(tree):
     return result
 
 
-def get_type(type_path):
-    """
-    Returns a list of XML filenames based on the type_path.
-    """
-    return [filename for filename in all_files() if (
-        filename.lower().endswith('.xml') and
-        re.search('^{0}'.format(type_path.lower()), filename))]
-
-
-def validate_master(filename):
+def validate_master(filename, externals):
     """
     Validates master file.
     """
     result = True
     print('[*] Validating master file {0}'.format(filename))
     try:
-        xmltree = xml.etree.ElementTree.parse(filename)
+        xmltree = ElementTree.parse(filename, ElementTree.XMLParser(strip_cdata=False))
         if not find_keyword(xmltree, 'TODO'):
             print('[-] Keyword checks failed')
             result = False
-        print('[*] Performing cross check on findings and non findings...')
-        if not cross_check_files(report_string(filename)):
+        print('[*] Performing cross check on scans, findings and non findings...')
+        if not cross_check_files(report_string(filename), externals):
             print('[-] Cross checks failed')
             result = False
         else:
             print('[+] Cross checks successful')
-    except xml.etree.ElementTree.ParseError as exception:
+    except ElementTree.ParseError as exception:
         print('[-] validating {0} failed ({1})'.format(filename, exception))
         result = False
     return result
@@ -230,17 +307,16 @@ def report_string(report_file):
         sys.exit(-1)
 
 
-def cross_check_files(report_text):
+def cross_check_files(report_text, externals):
     """
     Checks whether all (non) findings are included in the report file.
     Returns True if the checks were successful.
     """
     result = True
-    for type_path in ['Scans', 'Findings', 'Non-Findings']:
-        for item in get_type(type_path):
-            if report_text.find(item) == -1:
-                result = False
-                print('[-] could not find a reference to {0}'.format(item))
+    for external in externals:
+        if report_text.find(external) == -1:
+            print('[-] could not find a reference to {0}'.format(external))
+            result = False
     return result
 
 
