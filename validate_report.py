@@ -177,6 +177,7 @@ def get_all_text(node):
 def is_capitalized(string):
     """
     Checks whether all words start with a capital.
+    
     Returns True if that's the case.
     """
     return string.strip() == capitalize(string)
@@ -184,7 +185,7 @@ def is_capitalized(string):
 
 def capitalize(string):
     """
-    Capitalizes each letter
+    Capitalizes each letter.
     """
     return' '.join(word[0].upper() + word[1:] for word in string.strip().split())
 
@@ -240,7 +241,7 @@ def validate_type(tree, filename, check_spelling, learn, auto_fix):
         if tag == 'title' and not is_capitalized(root.find(tag).text):
             print('[-] Title missing capitalization: {0}'.format(root.find(tag).text))
             root.find(tag).text = capitalize(root.find(tag).text)
-            result = False
+            fix = True
         if tag == 'description' and get_all_text(root.find(tag)).strip()[-1] != '.':
             print('[*] Description missing final dot: {0}'.format(get_all_text(root.find(tag))))
             root.find(tag).text = get_all_text(root.find(tag)).strip() + '.'
@@ -326,12 +327,13 @@ def find_keyword(xmltree, keyword):
     This function needs lots of TLC.
     """
     result = True
+    section = ''
     for tag in xmltree.iter():
-        if tag.tag == 'section':
-            section = tag.attrib['id']
+        if tag.tag == 'section' and' id' in tag.attrib:
+            section = 'in {0}'.format(tag.attrib['id'])
         if tag.text:
             if keyword in tag.text:
-                print('[-] {0} found in section {1}'.
+                print('[-] {0} found {1}'.
                       format(keyword, section))
                 result = False
     return result
