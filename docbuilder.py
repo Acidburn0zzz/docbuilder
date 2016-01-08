@@ -20,7 +20,6 @@ import sys
 import textwrap
 
 
-global verboseprint
 # The magic tag which gets replaced by the git short commit hash
 GITREV = 'GITREV'
 
@@ -59,7 +58,7 @@ the Free Software Foundation, either version 3 of the License, or
     parser.add_argument('-w', '--warnings', action='store_true',
                         help='show warnings')
     args = parser.parse_args()
-    if args.verbose:
+    if args.verbose: #pylint: disable=missing-docstring
         def verboseprint(*args):
             for arg in args:
                 print(arg, end="")
@@ -97,7 +96,7 @@ def change_tag(fop):
             fop_file = fop_file.replace(GITREV, shorttag)
             with open(fop, 'w') as new_file:
                 new_file.write(fop_file)
-        print('[+] Embedding git version information into document')
+            print('[+] Embedding git version information into document')
 
 
 def to_fo(binary, input_file, xsl_file, fop):
@@ -144,6 +143,8 @@ def main():
     """
     The main program.
     """
+    global verboseerror
+    global verboseprint
     result = -1
     fop_binary = '/usr/local/bin/fop-1.1/fop'
     saxon_binary = '/usr/local/bin/saxon/saxon9he.jar'
