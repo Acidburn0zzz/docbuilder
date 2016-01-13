@@ -14,23 +14,21 @@ the Free Software Foundation, either version 3 of the License, or
 from __future__ import absolute_import
 from __future__ import print_function
 
+import argparse
 import mmap
 import os
 import re
 import subprocess
 import sys
+import textwrap
 import xml.sax
+
 from lxml import etree as ElementTree
 
 
-# When set to True, the report will be automatically fixed
-AUTO_FIX = False
+
 # When set to True, the report will be validated using docbuilder
 DOCBUILDER = False
-# When set to True, incorrect files will be opened by the system (editor)
-OPEN_FILES = False
-# When set to True, the spelling will be checked
-SPELLING = False
 VOCABULARY = 'project-vocabulary.pws'
 # Snippets may contain XML fragments without the proper entities
 SNIPPETDIR = '/snippets/'
@@ -45,13 +43,48 @@ MAX_LINE = 127
 if DOCBUILDER:
     import docbuilder_proxy
     import proxy_vagrant
-if SPELLING:
+try:
     import aspell
+except:
+    print('install aspell')
+
+def parse_arguments():
+    """
+    Parses command line arguments.
+    """
+    parser = argparse.ArgumentParser(
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            description=textwrap.dedent('''\
+validate_report - validates offer letters and reports
+
+Copyright (C) 2015-2016  Peter Mosmans [Go Forward]
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.'''))
+    parser.add_argument('--auto-fix', action='store_true',
+                        help='Try to automatically correct issues')
+    parser.add_argument('--edit', action='store_true',
+                        help='Open files with issues using an editor')
+    parser.add_argument('--learn', action='store_true',
+                        help='Store all unknown words in dictionary file')
+    parser.add_argument('--no-offer', action='store_true',
+                        help='Do not validate offer master file')
+    parser.add_argument('--spelling', action='store_true',
+                        help='Check spelling')
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='increase output verbosity')
+    parser.add_argument('--no-report', action='store_true',
+                        help='Do not validate report master file')
+    parser.add_argument('--quiet', action='store_true',
+                        help='Don\'t output status messages')
+    return vars(parser.parse_args())
 
 
-def validate_spelling(tree, learn=True):
+def validate_spelling(tree, filename, learn=True):
     """
     Checks spelling of text within tags.
+    If learn == True, then all unknown words will be added to the dictionary.
     """
     result = True
     try:
@@ -67,7 +100,7 @@ def validate_spelling(tree, learn=True):
                             speller.addtoPersonal(word)
                         else:
                             result = False
-                            print('[-] misspelled {0}'.format(word.encode('utf-8')))
+                            print('[-] Misspelled (unknown) word {0} in {1}'.format(word.encode('utf-8'), filename))
         if learn:
             speller.saveAllwords()
     except aspell.AspellSpellerError as exception:
@@ -100,32 +133,41 @@ def open_editor(filename):
         os.system('"{0}"'.format(filename.replace('/', os.path.sep)))
 
 
-def validate_files(filenames, check_spelling=False, learn=True):
+def validate_files(filenames, options):
     """
     Checks file extensions and calls appropriate validator function.
     Returns True if all files validated succesfully.
     """
     result = True
-    master = ''
+    masters = []
     externals = []
     for filename in filenames:
         if (filename.lower().endswith('.xml') or
                 filename.lower().endswith('xml"')):
             if True:
 #            if SNIPPETDIR not in filename:
-                if OFFERTE in filename or REPORT in filename:
-                    master = filename
+                if (OFFERTE in filename and not options['no_offer']) or (REPORT in filename and not options['no_report']):
+                    masters.append(filename)
                 # try:
-                type_result, xml_type = validate_xml(filename, check_spelling, learn, AUTO_FIX)
+                type_result, xml_type = validate_xml(filename, options)
                 result = result and type_result
                 if xml_type in ('scan', 'finding', 'non-finding'):
                     externals.append(filename)
 #                except:
 #                    result = False
-    if len(master):
-        result = validate_master(master, externals) and result
+    if len(masters):
+        for master in masters:
+            result = validate_master(master, externals, options) and result
     return result
 
+def print_output(options, stdout, stderr=None):
+    """
+    Prints out standard out and standard err using the verboseprint function.
+    """
+    if stdout and options['verbose']:
+        print('[+] {0}'.format(stdout))
+    if stderr and options['verbose']:
+        print('[-] {0}'.format(stderr))
 
 def validate_report():
     """
@@ -137,21 +179,21 @@ def validate_report():
     return proxy_vagrant.execute_command(host, command)
 
 
-def validate_xml(filename, check_spelling=False, learn=True, auto_fix=AUTO_FIX):
+def validate_xml(filename, options):
     """
     Validates XML file by trying to parse it.
     Returns True if the file validated successfully.
     """
     result = True
     xml_type = ''
-    print("[+] validating XML file: {0}".format(filename))
+    print_output(options, '[+] validating XML file: {0}'.format(filename))
     try:
         with open(filename, 'rb') as xml_file:
             xml.sax.parse(xml_file, xml.sax.ContentHandler())
         tree = ElementTree.parse(filename, ElementTree.XMLParser(strip_cdata=False))
-        type_result, xml_type = validate_type(tree, filename, check_spelling, learn, auto_fix)
+        type_result, xml_type = validate_type(tree, filename, options)
         result = validate_long_lines(tree) and result and type_result
-        if OPEN_FILES and not result:
+        if options['edit'] and not result:
             open_editor(filename)
     except (xml.sax.SAXException, ElementTree.ParseError) as exception:
         print('[-] validating {0} failed ({1})'.format(filename, exception))
@@ -177,7 +219,7 @@ def get_all_text(node):
 def is_capitalized(string):
     """
     Checks whether all words start with a capital.
-    
+
     Returns True if that's the case.
     """
     return string.strip() == capitalize(string)
@@ -190,7 +232,7 @@ def capitalize(string):
     return' '.join(word[0].upper() + word[1:] for word in string.strip().split())
 
 
-def validate_type(tree, filename, check_spelling, learn, auto_fix):
+def validate_type(tree, filename, options):
     """
     Performs specific checks based on type.
     Currently only Finding and Non-Finding are supported.
@@ -211,8 +253,8 @@ def validate_type(tree, filename, check_spelling, learn, auto_fix):
         tags = ['title']
     if not len(attributes):
         return result, xml_type
-    if check_spelling:
-        result = validate_spelling(tree, learn)
+    if options['spelling']:
+        result = validate_spelling(tree, filename, options['learn'])
     for attribute in attributes:
         if attribute not in root.attrib:
             print('[-] Missing obligatory attribute: {0}'.format(attribute))
@@ -231,24 +273,27 @@ def validate_type(tree, filename, check_spelling, learn, auto_fix):
                 fix = True
     for tag in tags:
         if root.find(tag) is None:
-            print('[-] Missing tag: {0}'.format(tag))
+            print('[-] Missing tag in {0}: {1}'.format(filename, tag))
             result = False
             continue
         if not get_all_text(root.find(tag)):
-            print('[-] Empty tag: {0}'.format(tag))
+            print('[-] Empty tag in {0}: {1}'.format(filename, tag))
             result = False
             continue
         if tag == 'title' and not is_capitalized(root.find(tag).text):
-            print('[-] Title missing capitalization: {0}'.format(root.find(tag).text))
+            print('[A] Title missing capitalization in {0}: {1}'.format(filename, root.find(tag).text))
             root.find(tag).text = capitalize(root.find(tag).text)
             fix = True
         if tag == 'description' and get_all_text(root.find(tag)).strip()[-1] != '.':
-            print('[*] Description missing final dot: {0}'.format(get_all_text(root.find(tag))))
+            print('[A] Description missing final dot in {0}: {1}'.format(filename, get_all_text(root.find(tag))))
             root.find(tag).text = get_all_text(root.find(tag)).strip() + '.'
             fix = True
-    if auto_fix and fix:
-        print('[+] Automatically fixed')
-        tree.write(filename)
+    if fix:
+        if options['auto_fix']:
+            print('[+] Automatically fixed {0}'.format(filename))
+            tree.write(filename)
+        else:
+            print('[+] NOTE: Items with [A] can be fixed automatically, use --auto-fix')
     return (result and not fix), xml_type
 
 
@@ -273,23 +318,24 @@ def validate_long_lines(tree):
     return result
 
 
-def validate_master(filename, externals):
+def validate_master(filename, externals, options):
     """
     Validates master file.
     """
     result = True
-    print('[*] Validating master file {0}'.format(filename))
+    print_output(options, '[*] Validating master file {0}'.format(filename))
     try:
-        xmltree = ElementTree.parse(filename, ElementTree.XMLParser(strip_cdata=False))
-        if not find_keyword(xmltree, 'TODO'):
-            print('[-] Keyword checks failed')
+        xmltree = ElementTree.parse(filename,
+                                    ElementTree.XMLParser(strip_cdata=False))
+        if not find_keyword(xmltree, 'TODO', filename):
+            print('[-] Keyword checks failed for {0}'.format(filename))
             result = False
-        print('[*] Performing cross check on scans, findings and non findings...')
-        if not cross_check_files(report_string(filename), externals):
-            print('[-] Cross checks failed')
+        print_output(options, 'Performing cross check on scans, findings and non findings...')
+        if not cross_check_files(filename, externals):
+            print('[-] Cross checks failed for {0}'.format(filename))
             result = False
         else:
-            print('[+] Cross checks successful')
+            print_output(options, '[+] Cross checks successful')
     except ElementTree.ParseError as exception:
         print('[-] validating {0} failed ({1})'.format(filename, exception))
         result = False
@@ -308,20 +354,21 @@ def report_string(report_file):
         sys.exit(-1)
 
 
-def cross_check_files(report_text, externals):
+def cross_check_files(filename, externals):
     """
     Checks whether all (non) findings are included in the report file.
     Returns True if the checks were successful.
     """
     result = True
+    report_text = report_string(filename)
     for external in externals:
         if report_text.find(external) == -1:
-            print('[-] could not find a reference to {0}'.format(external))
+            print('[-] could not find a reference in {0} to {1}'.format(filename, external))
             result = False
     return result
 
 
-def find_keyword(xmltree, keyword):
+def find_keyword(xmltree, keyword, filename):
     """
     Finds keywords in an XML tree.
     This function needs lots of TLC.
@@ -333,8 +380,7 @@ def find_keyword(xmltree, keyword):
             section = 'in {0}'.format(tag.attrib['id'])
         if tag.text:
             if keyword in tag.text:
-                print('[-] {0} found {1}'.
-                      format(keyword, section))
+                print('[-] {0} found in {1} {2}'.format(keyword, filename, section))
                 result = False
     return result
 
@@ -344,28 +390,26 @@ def main():
     The main program. Cross-checks, validates XML files and report.
     Returns True if the checks were successful.
     """
-    learn = False
-    options = sys.argv[1:]
-    if len(options) == 1 and 'learn' in sys.argv[1]:
-        print('[+] Adding unknown words to {0}'.format(VOCABULARY))
-        learn = True
-    if SPELLING:
+    options = parse_arguments()
+    if options['learn']:
+        print_output(options, 'Adding unknown words to {0}'.format(VOCABULARY))
+    if options['spelling']:
         if not os.path.exists(VOCABULARY):
-            print('[+] Creating project-specific vocabulary file {0}'.
+            print_output(options, 'Creating project-specific vocabulary file {0}'.
                   format(VOCABULARY))
-            learn = True
-    print('[*] Validating all XML files...')
-    result = validate_files(all_files(), SPELLING, learn)
+            options['learn'] = True
+    print_output(options, 'Validating all XML files...')
+    result = validate_files(all_files(), options)
     if result:
-        print('[+] Validation checks successful')
+        print_output(options, 'Validation checks successful')
         if DOCBUILDER:
-            print('[*] Validating report build...')
+            print_output(options, 'Validating report build...')
             result = validate_report() and result
     if result:
         print('[+] Succesfully validated everything. Good to go')
     else:
         print('[-] Errors occurred')
-    if SPELLING and learn:
+    if options['spelling'] and options['learn']:
         print('[*] Don\'t forget to check the vocabulary file {0}'.
               format(VOCABULARY))
 
