@@ -144,8 +144,7 @@ def validate_files(filenames, options):
     for filename in filenames:
         if (filename.lower().endswith('.xml') or
                 filename.lower().endswith('xml"')):
-            if True:
-#            if SNIPPETDIR not in filename:
+            if SNIPPETDIR not in filename:
                 if (OFFERTE in filename and not options['no_offer']) or (REPORT in filename and not options['no_report']):
                     masters.append(filename)
                 # try:
@@ -159,6 +158,7 @@ def validate_files(filenames, options):
         for master in masters:
             result = validate_master(master, externals, options) and result
     return result
+
 
 def print_output(options, stdout, stderr=None):
     """
@@ -247,7 +247,8 @@ def validate_type(tree, filename, options):
         attributes = ['findingCode']
     if xml_type == 'finding':
         attributes = ['threatLevel', 'type', 'id']
-        tags = ['title', 'description', 'technicaldescription', 'impact', 'recommendation']
+        tags = ['title', 'description', 'technicaldescription', 'impact',
+                'recommendation']
     if xml_type == 'non-finding':
         attributes = ['id']
         tags = ['title']
@@ -257,7 +258,8 @@ def validate_type(tree, filename, options):
         result = validate_spelling(tree, filename, options['learn'])
     for attribute in attributes:
         if attribute not in root.attrib:
-            print('[-] Missing obligatory attribute: {0}'.format(attribute))
+            print('[-] Missing obligatory attribute in {0}: {1}'.
+                  format(filename, attribute))
             if attribute == 'id':
                 root.set(attribute, filename)
                 fix = True
