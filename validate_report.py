@@ -31,7 +31,9 @@ from lxml import etree as ElementTree
 DOCBUILDER = False
 VOCABULARY = 'project-vocabulary.pws'
 # Snippets may contain XML fragments without the proper entities
-SNIPPETDIR = '/snippets/'
+EXAMPLEDIR = 'examples/'
+SNIPPETDIR = 'snippets/'
+TEMPLATEDIR = 'templates/'
 OFFERTE = '/offerte.xml'
 REPORT = '/report.xml'
 # show a warning when line is longer than WARN_LINE
@@ -151,7 +153,7 @@ def validate_files(filenames, options):
                 type_result, xml_type = validate_xml(filename, options)
                 result = result and type_result
                 if xml_type in ('scan', 'finding', 'non-finding'):
-                    externals.append(filename)
+                    externals.append(filename.lower())
 #                except:
 #                    result = False
     if len(masters):
@@ -168,6 +170,7 @@ def print_output(options, stdout, stderr=None):
         print('[+] {0}'.format(stdout))
     if stderr and options['verbose']:
         print('[-] {0}'.format(stderr))
+
 
 def validate_report():
     """
@@ -243,6 +246,8 @@ def validate_type(tree, filename, options):
     xml_type = root.tag
     attributes = []
     tags = []
+    if options['spelling']:
+        result = validate_spelling(tree, filename, options['learn'])
     if xml_type == 'pentest_report':
         attributes = ['findingCode']
     if xml_type == 'finding':
@@ -254,11 +259,10 @@ def validate_type(tree, filename, options):
         tags = ['title']
     if not len(attributes):
         return result, xml_type
-    if options['spelling']:
-        result = validate_spelling(tree, filename, options['learn'])
+
     for attribute in attributes:
         if attribute not in root.attrib:
-            print('[-] Missing obligatory attribute in {0}: {1}'.
+            print('[A] Missing obligatory attribute in {0}: {1}'.
                   format(filename, attribute))
             if attribute == 'id':
                 root.set(attribute, filename)
@@ -270,7 +274,7 @@ def validate_type(tree, filename, options):
                 print('[-] threatLevel is not Low, Moderate, High, Elevated or Extreme: {0}'.format(root.attrib[attribute]))
                 result = False
             if attribute == 'type' and not is_capitalized(root.attrib[attribute]):
-                print('[-] Type missing capitalization: {0}'.format(root.attrib[attribute]))
+                print('[A] Type missing capitalization: {0}'.format(root.attrib[attribute]))
                 root.attrib[attribute] = capitalize(root.attrib[attribute])
                 fix = True
     for tag in tags:
@@ -338,7 +342,7 @@ def validate_master(filename, externals, options):
             result = False
         else:
             print_output(options, '[+] Cross checks successful')
-    except ElementTree.ParseError as exception:
+    except (ElementTree.ParseError, IOError) as exception:
         print('[-] validating {0} failed ({1})'.format(filename, exception))
         result = False
     return result
@@ -364,9 +368,11 @@ def cross_check_files(filename, externals):
     result = True
     report_text = report_string(filename)
     for external in externals:
-        if report_text.find(external) == -1:
-            print('[-] could not find a reference in {0} to {1}'.format(filename, external))
-            result = False
+        if (EXAMPLEDIR not in external) and (SNIPPETDIR not in external) and \
+           (TEMPLATEDIR not in external):
+            if report_text.find(external) == -1:
+                    print('[-] could not find a reference in {0} to {1}'.format(filename, external))
+                    result = False
     return result
 
 
