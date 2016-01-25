@@ -137,7 +137,7 @@ def to_PDF(options):
     """
     Creates a PDF file based on a fo file.
     """
-    cmd = [options['fop_binary'], '-c', options['config'], options['fop'],
+    cmd = [options['fop_binary'], '-c', options['fop_config'], options['fop'],
            options['output']]
     try:
         process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
