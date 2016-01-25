@@ -153,7 +153,7 @@ def validate_files(filenames, options):
                 type_result, xml_type = validate_xml(filename, options)
                 result = result and type_result
                 if xml_type in ('scan', 'finding', 'non-finding'):
-                    externals.append(filename.lower())
+                    externals.append(filename)
 #                except:
 #                    result = False
     if len(masters):
