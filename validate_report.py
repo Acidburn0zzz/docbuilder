@@ -26,7 +26,6 @@ import xml.sax
 from lxml import etree as ElementTree
 
 
-
 # When set to True, the report will be validated using docbuilder
 DOCBUILDER = False
 VOCABULARY = 'project-vocabulary.pws'
@@ -48,7 +47,8 @@ if DOCBUILDER:
 try:
     import aspell
 except:
-    print('install aspell')
+    print('[-] aspell not installed: spelling not available')
+
 
 def parse_arguments():
     """
@@ -93,16 +93,23 @@ def validate_spelling(tree, filename, learn=True):
         speller = aspell.Speller(('lang', 'en'),
                                  ('personal-dir', '.'),
                                  ('personal', VOCABULARY))
+    except:  # some versions of aspell use a different path
+        speller = aspell.Speller(('lang', 'en'),
+                                 ('personal-path', './' + VOCABULARY),
+                                 ('personal', VOCABULARY))
+    try:
         root = tree.getroot()
         for section in root.iter():
-            if section.text and isinstance(section.tag, basestring) and section.tag not in ('a', 'monospace', 'pre'):
+            if section.text and isinstance(section.tag, basestring) and \
+               section.tag not in ('a', 'monospace', 'pre'):
                 for word in re.findall('([a-zA-Z]+\'?[a-zA-Z]+)', section.text):
                     if not speller.check(word):
                         if learn:
                             speller.addtoPersonal(word)
                         else:
                             result = False
-                            print('[-] Misspelled (unknown) word {0} in {1}'.format(word.encode('utf-8'), filename))
+                            print('[-] Misspelled (unknown) word {0} in {1}'.
+                                  format(word.encode('utf-8'), filename))
         if learn:
             speller.saveAllwords()
     except aspell.AspellSpellerError as exception:
@@ -147,7 +154,8 @@ def validate_files(filenames, options):
         if (filename.lower().endswith('.xml') or
                 filename.lower().endswith('xml"')):
             if SNIPPETDIR not in filename:
-                if (OFFERTE in filename and not options['no_offer']) or (REPORT in filename and not options['no_report']):
+                if (OFFERTE in filename and not options['no_offer']) or \
+                   (REPORT in filename and not options['no_report']):
                     masters.append(filename)
                 # try:
                 type_result, xml_type = validate_xml(filename, options)
@@ -270,7 +278,8 @@ def validate_type(tree, filename, options):
             else:
                 result = False
         else:
-            if attribute == 'threatLevel' and root.attrib[attribute] not in ('Low', 'Moderate', 'Elevated', 'High', 'Extreme'):
+            if attribute == 'threatLevel' and root.attrib[attribute] not in \
+               ('Low', 'Moderate', 'Elevated', 'High', 'Extreme'):
                 print('[-] threatLevel is not Low, Moderate, High, Elevated or Extreme: {0}'.format(root.attrib[attribute]))
                 result = False
             if attribute == 'type' and not is_capitalized(root.attrib[attribute]):
@@ -401,11 +410,11 @@ def main():
     options = parse_arguments()
     if options['learn']:
         print_output(options, 'Adding unknown words to {0}'.format(VOCABULARY))
-    if options['spelling']:
-        if not os.path.exists(VOCABULARY):
-            print_output(options, 'Creating project-specific vocabulary file {0}'.
-                  format(VOCABULARY))
-            options['learn'] = True
+#    if options['spelling']:
+#        if not os.path.exists(VOCABULARY):
+#            print_output(options, 'Creating project-specific vocabulary file {0}'.
+#                  format(VOCABULARY))
+#            options['learn'] = True
     print_output(options, 'Validating all XML files...')
     result = validate_files(all_files(), options)
     if result:
