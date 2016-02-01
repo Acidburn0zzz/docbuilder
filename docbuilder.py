@@ -20,8 +20,9 @@ import sys
 import textwrap
 
 
-# The magic tag which gets replaced by the git short commit hash
-GITREV = 'GITREV'
+GITREV = 'GITREV'  # Magic tag which gets replaced by the git short commit hash
+OFFERTE = 'generate_offerte.xsl'  # XSL for generating waivers
+WAIVER = 'waiver_'  # prefix for waivers
 
 
 def parse_arguments():
@@ -35,7 +36,7 @@ def parse_arguments():
         description=textwrap.dedent('''\
 Builds PDF files from (intermediate fo and) XML files.
 
-Copyright (C) 2015 Peter Mosmans [Go Forward]
+Copyright (C) 2015-2016 Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -47,27 +48,27 @@ the Free Software Foundation, either version 3 of the License, or
                         help="""fop configuration file (default
                         /usr/local/bin/fop-1.1/conf/rosfop.xconf""")
     parser.add_argument('-f', '--fop', action='store',
-                        default='./Report/target/report.fo',
+                        default='./target/report.fo',
                         help="""intermediate fop output file (default:
-                        ./Report/target/report.fo)""")
+                        ./target/report.fo)""")
     parser.add_argument('--fop-binary', action='store',
                         default='/usr/local/bin/fop-1.1/fop',
                         help='fop binary (default /usr/local/bin/fop-1.1/fop')
     parser.add_argument('-i', '--input', action='store',
-                        default='./Report/source/report.xml',
+                        default='./source/report.xml',
                         help="""input file (default:
-                        ./Report/source/report.xml)""")
+                        ./source/report.xml)""")
     parser.add_argument('--saxon', action='store',
                         default='/usr/local/bin/saxon/saxon9he.jar',
                         help="""saxon JAR file (default
                         /usr/local/bin/saxon/saxon9he.jar)""")
     parser.add_argument('-x', '--xslt', action='store',
-                        default='./Report/xslt/content.xsl',
-                        help='input file (default: ./Report/xslt/auto.xsl)')
+                        default='./xslt/generate_report.xsl',
+                        help='input file (default: ./xslt/generate_report.xsl)')
     parser.add_argument('-o', '--output', action='store',
-                        default='./Report/target/latest.pdf',
+                        default='./target/report-latest.pdf',
                         help="""output file name (default:
-                        ./Report/target/latest.pdf""")
+                        ./target/report-latest.pdf""")
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='increase output verbosity')
     parser.add_argument('-w', '--warnings', action='store_true',
@@ -118,6 +119,7 @@ def change_tag(fop):
 def to_fo(options):
     """
     Creates a fo output file based on a XML file.
+    Returns True if successful
     """
     cmd = ['java', '-jar', options['saxon'],
            '-s:' + options['input'], '-xsl:' + options['xslt'],
@@ -133,20 +135,25 @@ def to_fo(options):
     return True
 
 
-def to_PDF(options):
+def to_pdf(options):
     """
     Creates a PDF file based on a fo file.
+    Returns True if successful
     """
     cmd = [options['fop_binary'], '-c', options['fop_config'], options['fop'],
            options['output']]
     try:
+        verboseprint('Converting {0} to {1}'.format(options['fop'],
+                                                    options['output']))
         process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
         stdout, stderr = process.communicate()
         result = process.returncode
         print_output(stdout, stderr)
+        if result == 0:
+            print('[+] Succesfully built ' + options['output'])
     except OSError as exception:
         print_exit('[-] ERR: {0}'.format(exception.strerror), exception.errno)
-    return result
+    return result == 0
 
 
 def print_exit(text, result):
@@ -163,7 +170,7 @@ def main():
     """
     global verboseerror
     global verboseprint
-    result = -1
+    result = False
     options = parse_arguments()
     if not os.path.isfile(options['input']):
         print_exit('[-] Cannot find input file {0}'.
@@ -179,13 +186,31 @@ def main():
     except OSError as exception:
         print_exit('[-] Could not remove/overwrite file {0} ({1})'.
                    format(options['output'], exception.strerror), result)
-    result = (to_fo(options) and
-              to_PDF(options))
-    if result == 0:
-        print('[+] Succesfully build, output at {0}'.
-              format(options['output']))
+    result = to_fo(options)
+    if result:
+        if OFFERTE in options['xslt']:  # an offerte can generate multiple fo's
+            report_output = options['output']
+            verboseprint('generating separate waivers detected')
+            output_dir = os.path.dirname(options['output'])
+            fop_dir = os.path.dirname(options['fop'])
+            try:
+                for fop in [os.path.splitext(x)[0] for x in
+                            os.listdir(fop_dir) if x.endswith('fo')]:
+                    if WAIVER in fop:
+                        options['output'] = output_dir + os.sep + fop + '.pdf'
+                    else:
+                        options['output'] = report_output
+                    options['fop'] = fop_dir + os.sep + fop + '.fo'
+                    result = to_pdf(options) and result
+            except OSError as exception:
+                print_exit('[-] ERR: {0}'.format(exception.strerror),
+                           exception.errno)
+        else:
+            result = to_pdf(options)
+
     else:
         print_exit('[-] Unsuccessful (error {0})'.format(result), result)
+    sys.exit(not result)
 
 
 if __name__ == "__main__":
