@@ -95,8 +95,9 @@ def validate_spelling(tree, filename, learn=True):
                                  ('personal', VOCABULARY))
     except:  # some versions of aspell use a different path
         speller = aspell.Speller(('lang', 'en'),
-                                 ('personal-path', './' + VOCABULARY),
-                                 ('personal', VOCABULARY))
+                                 ('personal-path', './' + VOCABULARY))
+    [print(i[0] + ' ' + str(i[2]) + '\n') for i in speller.ConfigKeys()]
+    sys.exit(0)
     try:
         root = tree.getroot()
         for section in root.iter():
@@ -203,7 +204,7 @@ def validate_xml(filename, options):
             xml.sax.parse(xml_file, xml.sax.ContentHandler())
         tree = ElementTree.parse(filename, ElementTree.XMLParser(strip_cdata=False))
         type_result, xml_type = validate_type(tree, filename, options)
-        result = validate_long_lines(tree) and result and type_result
+        result = validate_long_lines(tree, filename, options) and result and type_result
         if options['edit'] and not result:
             open_editor(filename)
     except (xml.sax.SAXException, ElementTree.ParseError) as exception:
@@ -312,7 +313,7 @@ def validate_type(tree, filename, options):
     return (result and not fix), xml_type
 
 
-def validate_long_lines(tree):
+def validate_long_lines(tree, filename, options):
     """
     Checks whether <pre> section contains lines longer than MAX_LINE characters
     Returns True if the file validated successfully.
@@ -324,11 +325,11 @@ def validate_long_lines(tree):
             for line in pre_section.text.splitlines():
                 if len(line.strip()) > WARN_LINE:
                     if len(line.strip()) > MAX_LINE:
-                        print('[-] Line inside <pre> too long: {0}'.
-                              format(line.encode('utf-8').strip()))
+                        print('[-] {0} Line inside <pre> too long: {1}'.
+                              format(filename, line.encode('utf-8').strip()))
                     else:
-                        print('[*] Line inside <pre> long ({0} characters)'.
-                              format(len(line.strip())))
+                        print('[*] {0} Line inside <pre> long ({0} characters)'.
+                              format(filename, len(line.strip())))
                         result = False
     return result
 
