@@ -35,10 +35,8 @@ SNIPPETDIR = 'snippets/'
 TEMPLATEDIR = 'templates/'
 OFFERTE = '/offerte.xml'
 REPORT = '/report.xml'
-# show a warning when line is longer than WARN_LINE
-WARN_LINE = 127
-# Maximum line length for lines inside <pre> tags
-MAX_LINE = 127
+WARN_LINE = 100  # There should be a separation character after x characters...
+MAX_LINE = 130  # ... and before y
 
 
 if DOCBUILDER:
@@ -70,8 +68,8 @@ the Free Software Foundation, either version 3 of the License, or
                         help='Open files with issues using an editor')
     parser.add_argument('--learn', action='store_true',
                         help='Store all unknown words in dictionary file')
-    parser.add_argument('--no-offer', action='store_true',
-                        help='Do not validate offer master file')
+    parser.add_argument('--offer', action='store_true',
+                        help='Validate offer master file')
     parser.add_argument('--spelling', action='store_true',
                         help='Check spelling')
     parser.add_argument('-v', '--verbose', action='store_true',
@@ -155,7 +153,7 @@ def validate_files(filenames, options):
         if (filename.lower().endswith('.xml') or
                 filename.lower().endswith('xml"')):
             if SNIPPETDIR not in filename:
-                if (OFFERTE in filename and not options['no_offer']) or \
+                if (OFFERTE in filename and options['offer']) or \
                    (REPORT in filename and not options['no_report']):
                     masters.append(filename)
                 # try:
@@ -319,18 +317,31 @@ def validate_long_lines(tree, filename, options):
     Returns True if the file validated successfully.
     """
     result = True
+    fix = False
     root = tree.getroot()
     for pre_section in root.iter('pre'):
         if pre_section.text:
+            fixed_text = ''
             for line in pre_section.text.splitlines():
-                if len(line.strip()) > WARN_LINE:
-                    if len(line.strip()) > MAX_LINE:
+                fixed_line = line
+                if len(line.strip()) > MAX_LINE:
+                    if ' ' not in line[WARN_LINE:MAX_LINE]:
                         print('[-] {0} Line inside <pre> too long: {1}'.
-                              format(filename, line.encode('utf-8').strip()))
-                    else:
-                        print('[*] {0} Line inside <pre> long ({0} characters)'.
-                              format(filename, len(line.strip())))
+                              format(filename, line.encode('utf-8')[WARN_LINE:]))
                         result = False
+                        for split in ['"', '\'', '=', '-', ';']:
+                            if split in line.strip()[WARN_LINE:MAX_LINE]:
+                                print('[A] can be fixed')
+                                fix = True
+                                index = line.find(split, WARN_LINE)
+                                fixed_line = line[:index + 1] + '\n'
+                                fixed_line += line[index + 1:]
+                fixed_text += fixed_line
+    if fix:
+        if options['auto_fix']:
+            print('[+] Automatically fixed {0}'.format(filename))
+#            tree.write(filename)
+        print(fixed_text)
     return result
 
 
