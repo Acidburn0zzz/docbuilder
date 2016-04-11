@@ -14,7 +14,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import re
-import subprocess
 import sys
 
 import proxy_vagrant
@@ -23,36 +22,13 @@ import proxy_vagrant
 CONFIG_FILE = 'docbuilder.yml'
 
 
-def print_exit(text, result):
+def print_exit(text, result=False):
     """
     Prints error message and exits with result code.
     """
     print(text, file=sys.stderr)
-    sys.exit(result)
-
-
-def command_fails(cmd):
-    """
-    Executes command.
-    Returns True if command failed.
-    """
-    stdout = ''
-    stderr = ''
-    try:
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        result = process.returncode
-    except OSError as exception:
-        result = -1
-        print('could not execute {0}'.format(cmd))
-        print('[-] {0}'.format(exception.strerror), file=sys.stderr)
     if result:
-        print('FAILED')
-        print(stdout, stderr)
-    else:
-        print('OK')
-    return result
+        sys.exit(result)
 
 
 def preflight_checks(rerun=False):
@@ -61,32 +37,18 @@ def preflight_checks(rerun=False):
     Exits with 0 if everything went okilydokily
     """
     #pylint: disable=unused-variable
+    hostname = 'docbuilder'
     if not rerun:
         print('[*] Checking Vagrant... ', end='')
-        if command_fails(['vagrant', 'version']):
+        if proxy_vagrant.command_fails(['vagrant', 'version']):
             print_exit('[-] Could not execute Vagrant', -1)
         print('[*] Checking VirtualBox... ', end='')
-        if command_fails(['vboxmanage', '--version']):
+        if proxy_vagrant.command_fails(['vboxmanage', '--version']):
             print_exit('[-] Could not start VirtualBox', -5)
-    print('[*] Checking whether docbuilder is started... ', end='')
     sys.stdout.flush()
-    vagrant_id, status = proxy_vagrant.vagrant_status('docbuilder')
-    print(status)
-    if status not in 'running':
-        print('[*] Trying to start Vagrant box... ', end='')
-        if command_fails(['vagrant', 'up', vagrant_id]):
-            print_exit('[-] Could not start Vagrant box', -5)
-    print('[*] Trying to connect to Vagrant box... ', end='')
-    sys.stdout.flush()
-    result = command_fails(['vagrant', 'ssh', vagrant_id, '-c', 'id'])
+    result = proxy_vagrant.connect_vagrant(hostname)
     if result:
-        if rerun:
-            print_exit('[-] Failed', -6)
-        print('[*] Vagrant status could have been incorrect... rechecking')
-        preflight_checks(True)
-    print('[*] Trying to read local configuration... ', end='')
-    _host, _command = read_config(CONFIG_FILE)
-    print ('OK')
+        print_exit('[-] Could not start Vagrant box {0}'.format(hostname), -5)
     print('[+] All checks successful. Ready to rock.')
     print(r'''
      ::::::..
@@ -111,7 +73,7 @@ def preflight_checks(rerun=False):
  [[[__[[\.[['     [[[[[[ [[[   `[[     [[ [[cccc   [[[,/[[['
  $$""""Y$$$$      $$$$$$ $$'    $$,    $$ $$"\"""   $$$$$$c
 _88o,,od8P88    .d888888o88oo,._888_,o8P' 888oo,__ 888b "88bo,
-""YUMMMP"  "YmmMMMM""MMM""""YUMMMMMMMP"`   """"YUMMMMMMM   "W"v 0.1.1 [PGCM]''')
+""YUMMMP"  "YmmMMMM""MMM""""YUMMMMMMMP"`   """"YUMMMMMMM   "W"v 0.3 [PGCM]''')
     sys.exit(0)
 
 
@@ -126,7 +88,7 @@ def read_config(filename):
             command = re.findall(r'{0}:\s?(.*)'.format('command'), contents)[0]
     except IOError as exception:
         print_exit('[-] Could not open configuration file {0}: {1}'.
-                   format(filename, exception.strerror), exception.errno)
+                   format(filename, exception.strerror))
     except IndexError as exception:
         print_exit('[-] Missing variables in {0}'.format(filename), -1)
     return host, command
