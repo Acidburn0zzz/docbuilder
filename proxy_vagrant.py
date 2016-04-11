@@ -3,7 +3,7 @@
 """
 Proxies commands 'quickly' to Vagrant using Vagrant's ssh config
 
-Copyright (C) 2015 Peter Mosmans [Go Forward]
+Copyright (C) 2015-2016 Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -18,6 +18,77 @@ import re
 import subprocess
 from subprocess import PIPE
 import sys
+
+STATES = ['poweroff', 'aborted']
+ACTIONS = ['up', 'reload']
+
+
+def command_fails(cmd):
+    """
+    Executes command.
+    Returns True if command failed.
+    """
+    stdout = ''
+    stderr = ''
+    try:
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+        result = process.returncode
+    except OSError as exception:
+        result = -1
+        print('could not execute {0}'.format(cmd))
+        print('[-] {0}'.format(exception.strerror), file=sys.stderr)
+    if result:
+        print('FAILED')
+#        print(stdout, stderr)
+    else:
+        print('OK')
+    return result
+
+
+def connect_vagrant(hostname, rerun=False):
+    """
+    Checks if vagrant can be started and is accessible.
+    Exits with 0 if everything went okilydokily
+    """
+    print('[*] Querying status of {0}... '.format(hostname), end='')
+    sys.stdout.flush()
+    result, vagrant_id = start_vagrant(hostname)
+    if not result:
+        print_exit('[-] Could not start Vagrant box {0}'.format(hostname), -5)
+    print('[*] Trying to connect to {0}... '.format(hostname), end='')
+    sys.stdout.flush()
+    result = command_fails(['vagrant', 'ssh', vagrant_id, '-c', 'id'])
+    if result:
+        if rerun:
+            print_exit('[-] Failed', -6)
+        print('[*] Vagrant status could have been incorrect... rechecking')
+        connect_vagrant(hostname, True)
+
+
+def start_vagrant(hostname, action=0):
+    """
+    Tries really hard to start a Vagrant instance.
+    """
+    vagrant_id, status = vagrant_status(hostname)
+    if not action:
+        print(status)
+#    if 'running' in status:
+#        return True, vagrant_id
+    if 'unknown' in status:
+        print_exit('Unknown Vagrant box: ' + hostname, -1)
+    if status in STATES:
+        if action > len(ACTIONS):
+            print_exit('out of options', -1)
+            return False, ''
+        command = ACTIONS[action]
+        print('[*] Not giving up, trying to {0} Vagrant box... '.
+              format(command), end='')
+        sys.stdout.flush()
+        if command_fails(['vagrant', command, vagrant_id]):
+            start_vagrant(hostname, action + 1)
+    return True, vagrant_id
 
 
 def vagrant_status(hostname):
@@ -45,26 +116,6 @@ def vagrant_status(hostname):
     return vagrant_id, status
 
 
-def vagrant_start(vagrant_id):
-    """
-    Starts a Vagrant box.
-    """
-    # pylint: disable=unused-variable
-    cmd = ['vagrant', 'up', vagrant_id]
-    try:
-        print('[+] Starting up machine')
-        process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
-        _stdout, stderr = process.communicate()
-        result = process.returncode
-        if result:
-            print_exit('[-] Could not start Vagrant machine ({0})'.
-                       format(stderr), result)
-    except OSError as exception:
-        print_exit('[-] Could not find vagrant executable: {0}'.
-                   format(exception.strerror), exception.errno)
-    return result
-
-
 def vagrant_connection(hostname, filename):
     """
     Obtains a ssh configuration file from the global Vagrant store.
@@ -73,23 +124,19 @@ def vagrant_connection(hostname, filename):
     if os.path.isfile(filename):
         return True
     result = False
-    try:
-        vagrant_id, status = vagrant_status(hostname)
-        print('[*] Vagrant status of {0} is {1}'.format(hostname, status))
-        if status in ('aborted', 'poweroff'):
-            vagrant_start(vagrant_id)
-            vagrant_id, status = vagrant_status(hostname)
-        if status in 'running':
+    result, vagrant_id = start_vagrant(hostname)
+    if result:
+        try:
             cmd = ['vagrant', 'ssh-config', vagrant_id]
             process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
             stdout, _stderr = process.communicate()
             if not process.returncode:
                 with open(filename, 'w') as config_file:
                     config_file.write(stdout)
-                result = 1
-    except OSError as exception:
-        print_exit('[-] Could not find vagrant executable: {0}'.
-                   format(exception.strerror), exception.errno)
+                    result = True
+        except OSError as exception:
+            print_exit('[-] Could not find vagrant executable: {0}'.
+                       format(exception.strerror), exception.errno)
     return result
 
 
@@ -108,7 +155,7 @@ def print_exit(text, result):
     """
     Prints error message and exits with result code.
     """
-    print(text, file=sys.stderr)
+    print('[-] ' + text, file=sys.stderr)
     sys.exit(result)
 
 
@@ -148,8 +195,8 @@ def main():
     """
     if len(sys.argv) < 3:
         print_exit('Usage: proxy_vagrant.py hostname command', -1)
-    hostname = sys.argv[1]
-    command = sys.argv[2:]
+        hostname = sys.argv[1]
+        command = sys.argv[2:]
     return execute_command(hostname, command)
 
 
