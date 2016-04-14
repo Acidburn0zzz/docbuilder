@@ -195,9 +195,12 @@ def main():
     """
     if len(sys.argv) < 3:
         print_exit('Usage: proxy_vagrant.py hostname command', -1)
-        hostname = sys.argv[1]
-        command = sys.argv[2:]
-    return execute_command(hostname, command)
+    hostname = sys.argv[1]
+    command = sys.argv[2:]
+    if '--check' in command:
+        return connect_vagrant(hostname)
+    else:
+        return execute_command(hostname, command)
 
 
 if __name__ == "__main__":
