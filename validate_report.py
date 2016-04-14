@@ -64,6 +64,8 @@ the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.'''))
     parser.add_argument('--auto-fix', action='store_true',
                         help='Try to automatically correct issues')
+    parser.add_argument('--debug', action='store_true',
+                        help='Show debug information')
     parser.add_argument('--edit', action='store_true',
                         help='Open files with issues using an editor')
     parser.add_argument('--learn', action='store_true',
@@ -81,10 +83,10 @@ the Free Software Foundation, either version 3 of the License, or
     return vars(parser.parse_args())
 
 
-def validate_spelling(tree, filename, learn=True):
+def validate_spelling(tree, filename, options):
     """
     Checks spelling of text within tags.
-    If learn == True, then all unknown words will be added to the dictionary.
+    If options['learn'], then unknown words will be added to the dictionary.
     """
     result = True
     try:
@@ -94,8 +96,8 @@ def validate_spelling(tree, filename, learn=True):
     except:  # some versions of aspell use a different path
         speller = aspell.Speller(('lang', 'en'),
                                  ('personal-path', './' + VOCABULARY))
-    [print(i[0] + ' ' + str(i[2]) + '\n') for i in speller.ConfigKeys()]
-    sys.exit(0)
+    if options['debug']:
+        [print(i[0] + ' ' + str(i[2]) + '\n') for i in speller.ConfigKeys()]
     try:
         root = tree.getroot()
         for section in root.iter():
@@ -103,13 +105,13 @@ def validate_spelling(tree, filename, learn=True):
                section.tag not in ('a', 'monospace', 'pre'):
                 for word in re.findall('([a-zA-Z]+\'?[a-zA-Z]+)', section.text):
                     if not speller.check(word):
-                        if learn:
+                        if options['learn']:
                             speller.addtoPersonal(word)
                         else:
                             result = False
                             print('[-] Misspelled (unknown) word {0} in {1}'.
                                   format(word.encode('utf-8'), filename))
-        if learn:
+        if options['learn']:
             speller.saveAllwords()
     except aspell.AspellSpellerError as exception:
         print('[-] Spelling disabled ({0})'.format(exception))
@@ -254,7 +256,7 @@ def validate_type(tree, filename, options):
     attributes = []
     tags = []
     if options['spelling']:
-        result = validate_spelling(tree, filename, options['learn'])
+        result = validate_spelling(tree, filename, options)
     if xml_type == 'pentest_report':
         attributes = ['findingCode']
     if xml_type == 'finding':
