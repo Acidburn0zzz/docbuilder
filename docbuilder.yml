@@ -1,2 +1,2 @@
 host: docbuilder
-command: cd /work/source;../docbuilder.py
+command: cd /work/source; ../docbuilder.py
