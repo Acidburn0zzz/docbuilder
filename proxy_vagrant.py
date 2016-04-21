@@ -19,8 +19,8 @@ import subprocess
 from subprocess import PIPE
 import sys
 
-STATES = ['poweroff', 'aborted']
-ACTIONS = ['up', 'reload']
+STATES = ['poweroff', 'aborted', 'saved']
+ACTIONS = ['up', 'resume', 'reload']
 
 
 def command_fails(cmd):
