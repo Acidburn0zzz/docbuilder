@@ -22,13 +22,6 @@ import proxy_vagrant
 CONFIG_FILE = 'docbuilder.yml'
 
 
-def print_exit(text, result=False):
-    """
-    Prints error message and exits with result code.
-    """
-    print(text, file=sys.stderr)
-    if result:
-        sys.exit(result)
 
 
 def preflight_checks(rerun=False):
@@ -41,14 +34,16 @@ def preflight_checks(rerun=False):
     if not rerun:
         print('[*] Checking Vagrant... ', end='')
         if proxy_vagrant.command_fails(['vagrant', 'version']):
-            print_exit('[-] Could not execute Vagrant', -1)
+            print_error('[-] Could not execute Vagrant', -1)
         print('[*] Checking VirtualBox... ', end='')
         if proxy_vagrant.command_fails(['vboxmanage', '--version']):
-            print_exit('[-] Could not start VirtualBox', -5)
+            print_error('[-] Could not start VirtualBox', -5)
     sys.stdout.flush()
-    result = proxy_vagrant.connect_vagrant(hostname)
-    if result:
-        print_exit('[-] Could not start Vagrant box {0}'.format(hostname), -5)
+    if proxy_vagrant.connect_vagrant(hostname):
+        print_error('[-] Could not start Vagrant box {0}'.format(hostname), -5)
+    print('[*] Checking SSH configuration file... ', end='')
+    if proxy_vagrant.execute_command(hostname, 'id', True):
+        print_error('[-] Could not execute commands on box {0}'.format(hostname), -5)
     print('[+] All checks successful. Ready to rock.')
     print(r'''
      ::::::..
@@ -73,8 +68,41 @@ def preflight_checks(rerun=False):
  [[[__[[\.[['     [[[[[[ [[[   `[[     [[ [[cccc   [[[,/[[['
  $$""""Y$$$$      $$$$$$ $$'    $$,    $$ $$"\"""   $$$$$$c
 _88o,,od8P88    .d888888o88oo,._888_,o8P' 888oo,__ 888b "88bo,
-""YUMMMP"  "YmmMMMM""MMM""""YUMMMMMMMP"`   """"YUMMMMMMM   "W"v 0.3 [PGCM]''')
+""YUMMMP"  "YmmMMMM""MMM""""YUMMMMMMMP"`   """"YUMMMMMMM   "W"v 0.4 [PGCM]''')
     sys.exit(0)
+
+
+
+def print_error(text, result=False):
+    """
+    Prints error message.
+    When @result, exits with result.
+    """
+    if len(text):
+        print_line('[-] ' + text, True)
+    if result:
+        sys.exit(result)
+
+
+def print_line(text, error=False):
+    """
+    Prints text, and flushes stdout and stdin.
+    When @error, prints text to stderr instead of stdout.
+    """
+    if not error:
+        print(text)
+    else:
+        print(text, file=sys.stderr)
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+
+def print_status(text, options=False):
+    """
+    Prints status message if options array is given and contains 'verbose'.
+    """
+    if options and options['verbose']:
+        print_line('[*] ' + str(text))
 
 
 def read_config(filename):
@@ -87,10 +115,10 @@ def read_config(filename):
             host = re.findall(r'{0}:\s?(.*)'.format('host'), contents)[0]
             command = re.findall(r'{0}:\s?(.*)'.format('command'), contents)[0]
     except IOError as exception:
-        print_exit('[-] Could not open configuration file {0}: {1}'.
-                   format(filename, exception.strerror))
+        print_error('[-] Could not open configuration file {0}: {1}'.
+                    format(filename, exception.strerror))
     except IndexError as exception:
-        print_exit('[-] Missing variables in {0}'.format(filename), -1)
+        print_error('[-] Missing variables in {0}'.format(filename), -1)
     return host, command
 
 
@@ -107,8 +135,8 @@ def main():
     try:
         sys.exit(proxy_vagrant.execute_command(host, command))
     except OSError as exception:
-        print_exit('[-] Could not open file: {0}'.
-                   format(exception.strerror), exception.errno)
+        print_error('[-] Could not open file: {0}'.
+                    format(exception.strerror), exception.errno)
 
 
 if __name__ == "__main__":
