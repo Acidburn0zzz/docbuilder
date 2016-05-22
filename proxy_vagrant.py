@@ -28,12 +28,11 @@ def command_fails(cmd):
     Executes command.
     Returns True if command failed.
     """
-    stdout = ''
-    stderr = ''
     try:
+        # pylint: disable=unused-variable
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
+        _stdout, _stderr = process.communicate()
         result = process.returncode
     except OSError as exception:
         result = -1
@@ -41,7 +40,6 @@ def command_fails(cmd):
         print('[-] {0}'.format(exception.strerror), file=sys.stderr)
     if result:
         print('FAILED')
-#        print(stdout, stderr)
     else:
         print('OK')
     return result
@@ -116,12 +114,13 @@ def vagrant_status(hostname):
     return vagrant_id, status
 
 
-def vagrant_connection(hostname, filename):
+def vagrant_connection(hostname, filename, force=False):
     """
     Obtains a ssh configuration file from the global Vagrant store.
+    If @force, then overwrite cached SSH file.
     """
     # pylint: disable=unused-variable
-    if os.path.isfile(filename):
+    if not force and os.path.isfile(filename):
         return True
     result = False
     result, vagrant_id = start_vagrant(hostname)
@@ -178,12 +177,13 @@ def print_error(text):
     sys.stderr.flush()
 
 
-def execute_command(hostname, command):
+def execute_command(hostname, command, force=False):
     """
     Executes @command using ssh on Vagrant box @hostname.
+    If @force, then overwrite cached SSH file.
     """
     config_file = hostname + '.ssh-config'
-    if not vagrant_connection(hostname, config_file):
+    if not vagrant_connection(hostname, config_file, force):
         print_error('[-] Could not connect to Vagrant instance of {0}'.
                     format(hostname))
     return execute_ssh(config_file, hostname, command)
@@ -195,12 +195,9 @@ def main():
     """
     if len(sys.argv) < 3:
         print_exit('Usage: proxy_vagrant.py hostname command', -1)
-    hostname = sys.argv[1]
-    command = sys.argv[2:]
-    if '--check' in command:
-        return connect_vagrant(hostname)
-    else:
-        return execute_command(hostname, command)
+        hostname = sys.argv[1]
+        command = sys.argv[2:]
+    return execute_command(hostname, command)
 
 
 if __name__ == "__main__":
