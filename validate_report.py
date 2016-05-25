@@ -332,13 +332,13 @@ def validate_long_lines(tree, filename, options):
                               format(filename, line.encode('utf-8')[WARN_LINE:]))
                         result = False
                         for split in ['"', '\'', '=', '-', ';']:
-                            if split in line.strip()[WARN_LINE:MAX_LINE]:
+                            if split in line.encode('utf-8').strip()[WARN_LINE:MAX_LINE]:
                                 print('[A] can be fixed')
                                 fix = True
                                 index = line.find(split, WARN_LINE)
                                 fixed_line = line[:index + 1] + '\n'
                                 fixed_line += line[index + 1:]
-                fixed_text += fixed_line
+                fixed_text += fixed_line.encode('utf-8')
     if fix:
         if options['auto_fix']:
             print('[+] Automatically fixed {0}'.format(filename))
