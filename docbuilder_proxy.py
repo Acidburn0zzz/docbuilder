@@ -22,15 +22,12 @@ import proxy_vagrant
 CONFIG_FILE = 'docbuilder.yml'
 
 
-
-
-def preflight_checks(rerun=False):
+def preflight_checks(hostname, rerun=False):
     """
     Checks if all tools are there.
     Exits with 0 if everything went okilydokily
     """
     #pylint: disable=unused-variable
-    hostname = 'docbuilder'
     if not rerun:
         print('[*] Checking Vagrant... ', end='')
         if proxy_vagrant.command_fails(['vagrant', 'version']):
@@ -126,14 +123,17 @@ def main():
     """
     Executes COMMAND on BOX.
     """
+    hostname = 'docbuilder'
     options = sys.argv[1:]
-    if len(options) == 1 and 'check' in sys.argv[1]:
-        preflight_checks()
-    host, command = read_config(CONFIG_FILE)
+    if len(options) >= 1 and 'check' in sys.argv[1]:
+        if len(options) > 1:
+            hostname = sys.argv[2]
+        preflight_checks(hostname)
+    hostname, command = read_config(CONFIG_FILE)
     if len(options):
         command = '{0} {1}'.format(command, ' '.join(options))
     try:
-        sys.exit(proxy_vagrant.execute_command(host, command))
+        sys.exit(proxy_vagrant.execute_command(hostname, command))
     except OSError as exception:
         print_error('[-] Could not open file: {0}'.
                     format(exception.strerror), exception.errno)
