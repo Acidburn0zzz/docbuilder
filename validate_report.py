@@ -62,14 +62,20 @@ This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.'''))
+    parser.add_argument('-a', '--all', action='store_true',
+                        help='Perform all checks')
     parser.add_argument('--auto-fix', action='store_true',
                         help='Try to automatically correct issues')
+    parser.add_argument('-c', '--capitalization', action='store_true',
+                        help='Check capitalization')
     parser.add_argument('--debug', action='store_true',
                         help='Show debug information')
     parser.add_argument('--edit', action='store_true',
                         help='Open files with issues using an editor')
     parser.add_argument('--learn', action='store_true',
                         help='Store all unknown words in dictionary file')
+    parser.add_argument('--long', action='store_true',
+                        help='Check for long lines')
     parser.add_argument('--offer', action='store_true',
                         help='Validate offer master file')
     parser.add_argument('--spelling', action='store_true',
@@ -289,8 +295,10 @@ def validate_type(tree, filename, options):
                ('Low', 'Moderate', 'Elevated', 'High', 'Extreme'):
                 print('[-] threatLevel is not Low, Moderate, High, Elevated or Extreme: {0}'.format(root.attrib[attribute]))
                 result = False
-            if attribute == 'type' and not is_capitalized(root.attrib[attribute]):
-                print('[A] Type missing capitalization: {0}'.format(root.attrib[attribute]))
+            if attribute == 'type' and (options['capitalization'] and not \
+                                        is_capitalized(root.attrib[attribute])):
+                print('[A] Type missing capitalization: {0}'.
+                      format(root.attrib[attribute]))
                 root.attrib[attribute] = capitalize(root.attrib[attribute])
                 fix = True
     for tag in tags:
@@ -302,7 +310,8 @@ def validate_type(tree, filename, options):
             print('[-] Empty tag in {0}: {1}'.format(filename, tag))
             result = False
             continue
-        if tag == 'title' and not is_capitalized(root.find(tag).text):
+        if tag == 'title' and (options['capitalization'] and \
+                               not is_capitalized(root.find(tag).text)):
             print('[A] Title missing capitalization in {0}: {1}'.format(filename, root.find(tag).text))
             root.find(tag).text = capitalize(root.find(tag).text)
             fix = True
@@ -324,6 +333,8 @@ def validate_long_lines(tree, filename, options):
     Checks whether <pre> section contains lines longer than MAX_LINE characters
     Returns True if the file validated successfully.
     """
+    if not options['long']:
+        return True
     result = True
     fix = False
     root = tree.getroot()
@@ -428,6 +439,9 @@ def main():
     Returns True if the checks were successful.
     """
     options = parse_arguments()
+    if options['all']:
+        options['capitalization'] = True
+        options['long'] = True
     if options['learn']:
         print_output(options, 'Adding unknown words to {0}'.format(VOCABULARY))
 #    if options['spelling']:
