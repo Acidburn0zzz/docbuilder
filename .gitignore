@@ -1,0 +1,12 @@
+# virtualenv
+[Bb]in
+[Ii]nclude
+[Ll]ib
+local
+pip-selfcheck.json
+[Ss]cripts
+# Emacs temporary files
+.\#*
+\#*\#
+# compiled Python
+*.pyc
