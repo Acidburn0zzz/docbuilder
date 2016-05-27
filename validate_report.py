@@ -228,20 +228,26 @@ def get_all_text(node):
     return text_string.strip()
 
 
-def is_capitalized(string):
+def is_capitalized(line):
     """
-    Checks whether all words start with a capital.
+    Checks whether all words in @line start with a capital.
 
     Returns True if that's the case.
     """
-    return string.strip() == capitalize(string)
+    return line.strip() == capitalize(line)
 
 
-def capitalize(string):
+def capitalize(line):
     """
-    Capitalizes each letter.
+    Returns a capitalized version of @line, where all words longer than
+    3 letters start with a capital letter.
     """
-    return' '.join(word[0].upper() + word[1:] for word in string.strip().split())
+    capitalized = ''
+    for word in line.strip().split():
+        if len(word) > 3:
+            word = word[0].upper() + word[1:]
+        capitalized += word + ' '
+    return capitalized.strip()
 
 
 def validate_type(tree, filename, options):
