@@ -3,7 +3,7 @@
 """
 Cross-checks findings, validates XML files, offerte and report files.
 
-Copyright (C) 2015 Peter Mosmans [Go Forward]
+Copyright (C) 2015-2016 Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -31,6 +31,8 @@ DOCBUILDER = False
 VOCABULARY = 'project-vocabulary.pws'
 # Snippets may contain XML fragments without the proper entities
 EXAMPLEDIR = 'examples/'
+NOT_CAPITALIZED = ['a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'in',
+                   'nor', 'of', 'on', 'or', 'the', 'to', 'up']
 SNIPPETDIR = 'snippets/'
 TEMPLATEDIR = 'templates/'
 OFFERTE = '/offerte.xml'
@@ -204,7 +206,7 @@ def validate_xml(filename, options):
     """
     result = True
     xml_type = ''
-    print_output(options, '[+] validating XML file: {0}'.format(filename))
+    print_output(options, 'Validating XML file: {0}'.format(filename))
     try:
         with open(filename, 'rb') as xml_file:
             xml.sax.parse(xml_file, xml.sax.ContentHandler())
@@ -245,12 +247,12 @@ def is_capitalized(line):
 
 def capitalize(line):
     """
-    Returns a capitalized version of @line, where all words longer than
-    3 letters start with a capital letter.
+    Returns a capitalized version of @line, where the first word and all other
+    words not in NOT_CAPITALIZED are capitalized.
     """
     capitalized = ''
     for word in line.strip().split():
-        if len(word) > 3:
+        if word not in NOT_CAPITALIZED or not len(capitalized):
             word = word[0].upper() + word[1:]
         capitalized += word + ' '
     return capitalized.strip()
