@@ -13,9 +13,7 @@
 
 # File which has to be available in target directory to qualify as target
 FINGERPRINT="docbuilder.py"
-# List of directories that need to be updated
-SOURCEDIRECTORIES=""
-# List of files that need to be updated
+# List of files and directories that need to be updated
 SOURCEFILES="docbuilder.py docbuilder_proxy.py proxy_vagrant.py show validate_report.py"
 # Root directory within source repo
 SOURCEROOT=""
@@ -42,9 +40,10 @@ pushd "$source" >/dev/null && git pull && popd >/dev/null
 # Only update newer files
 echo "[*] Applying changes (if any)..."
 for sourcefile in ${SOURCEFILES}; do
-    echo cp -uv ${source}/${SOURCEROOT}/${sourcefile} $target/
-done
-for sourcedirectory in ${SOURCEDIRECTORIES}; do
-    echo cp -uvr ${source}/${SOURCEROOT}/${sourcedirectory} $target/
+    if [ -d "${source}/${SOURCEROOT}/${sourcefile}" ]; then
+       cp -uvr ${source}/${SOURCEROOT}${sourcefile} $target
+    else
+        cp -uv ${source}/${SOURCEROOT}${sourcefile} $target
+    fi
 done
 echo "[+] Done"
