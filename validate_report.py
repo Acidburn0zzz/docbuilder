@@ -299,8 +299,9 @@ def validate_type(tree, filename, options):
                 result = False
             if attribute == 'type' and (options['capitalization'] and not \
                                         is_capitalized(root.attrib[attribute])):
-                print('[A] Type missing capitalization: {0}'.
-                      format(root.attrib[attribute]))
+                print('[A] Type missing capitalization (expected {0}, read {1})'.
+                      format(capitalize(root.attrib[attribute]),
+                             root.attrib[attribute]))
                 root.attrib[attribute] = capitalize(root.attrib[attribute])
                 fix = True
     for tag in tags:
@@ -314,7 +315,9 @@ def validate_type(tree, filename, options):
             continue
         if tag == 'title' and (options['capitalization'] and \
                                not is_capitalized(root.find(tag).text)):
-            print('[A] Title missing capitalization in {0}: {1}'.format(filename, root.find(tag).text))
+            print('[A] Title missing capitalization in {0} (expected {1}, read {2})'.
+                  format(filename, capitalize(root.find(tag).text),
+                         root.find(tag).text))
             root.find(tag).text = capitalize(root.find(tag).text)
             fix = True
         if tag == 'description' and get_all_text(root.find(tag)).strip()[-1] != '.':
