@@ -242,7 +242,7 @@ def is_capitalized(line):
 
     Returns True if that's the case.
     """
-    return line.strip() == capitalize(line)
+    return not line or line.strip() == capitalize(line)
 
 
 def capitalize(line):
