@@ -17,18 +17,25 @@ FINGERPRINT="docbuilder.py"
 SOURCEFILES="docbuilder.py docbuilder_proxy.py proxy_vagrant.py show validate_report.py"
 # Root directory within source repo
 SOURCEROOT=""
-VERSION=0.1
+
+
+## Don't change anything below this line
+VERSION=0.7
 
 source=$(dirname $(readlink -f $0))
 target=$1
 
-if [ -z "$1" ]; then
-    echo "Usage: pull_upstream_changes TARGET"
-    exit
+if [ -z "$target" ]; then
+    target=$(readlink -f .)
+    if [ "${target}" == "${source}" ]; then
+        echo "Usage: pull_upstream_changes [TARGET]"
+        echo "       or run from within target directory"
+        exit
+    fi
 fi
 
 # Check if the target actually contains the repository
-if [ ! -d $target/dtd ]; then
+if [ ! -z ${FINGERPRINT} ] && [ ! -e $target/${FINGERPRINT} ]; then
    echo "[-] ${target} does not contain the correct repository"
    exit
 fi
@@ -41,9 +48,9 @@ pushd "$source" >/dev/null && git pull && popd >/dev/null
 echo "[*] Applying changes (if any)..."
 for sourcefile in ${SOURCEFILES}; do
     if [ -d "${source}/${SOURCEROOT}/${sourcefile}" ]; then
-       cp -uvr ${source}/${SOURCEROOT}${sourcefile} $target
+       cp -prv ${source}/${SOURCEROOT}/${sourcefile} $target/
     else
-        cp -uv ${source}/${SOURCEROOT}${sourcefile} $target
+        cp -pv ${source}/${SOURCEROOT}/${sourcefile} $target/${sourcefile}
     fi
 done
 echo "[+] Done"
