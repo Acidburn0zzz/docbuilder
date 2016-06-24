@@ -3,7 +3,7 @@
 """
 Cross-checks findings, validates XML files, offerte and report files.
 
-Copyright (C) 2015-2016 Peter Mosmans [Go Forward]
+Copyright (C) 2015-2016 Peter Mosmans [Radically Open Security]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -110,7 +110,7 @@ def validate_spelling(tree, filename, options):
         root = tree.getroot()
         for section in root.iter():
             if section.text and isinstance(section.tag, basestring) and \
-               section.tag not in ('a', 'monospace', 'pre'):
+               section.tag not in ('a', 'code', 'monospace', 'pre'):
                 for word in re.findall('([a-zA-Z]+\'?[a-zA-Z]+)', section.text):
                     if not speller.check(word):
                         if options['learn']:
