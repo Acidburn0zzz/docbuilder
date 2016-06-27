@@ -1,0 +1,19 @@
+---
+# file: docbuilder.yml
+
+- hosts: all
+  become: yes
+  become_method: sudo
+  roles:
+    - role: PeterMosmans.bootstrap
+      tags: bootstrap
+    - role: PeterMosmans.virtualbox-guest
+      tags: virtualbox
+    - role: PeterMosmans.provision-vagrant
+      tags: vagrant
+    - role: docbuilder
+      tags: docbuilder
+    - role: PeterMosmans.compact-box
+      tags: compact
+  vars:
+    - hostname: docbuilder

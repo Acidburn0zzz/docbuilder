@@ -1,0 +1,7 @@
+---
+# file: install_roles.yml
+- src: PeterMosmans.bootstrap
+- src: PeterMosmans.compact-box
+- src: PeterMosmans.docbuilder
+- src: PeterMosmans.provision-vagrant
+- src: PeterMosmans.virtualbox-guest
