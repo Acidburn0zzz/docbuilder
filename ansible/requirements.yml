@@ -1,0 +1,8 @@
+---
+# file: requirements.yml
+- src: PeterMosmans.bootstrap
+- src: PeterMosmans.compact-box
+- src: PeterMosmans.docbuilder
+- src: PeterMosmans.provision-vagrant
+- src: PeterMosmans.virtualbox-guest
+- src: geerlingguy.gitlab
