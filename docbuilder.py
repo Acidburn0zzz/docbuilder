@@ -49,27 +49,26 @@ the Free Software Foundation, either version 3 of the License, or
                         help="""fop configuration file (default
                         /etc/docbuilder/rosfop.xconf""")
     parser.add_argument('-f', '--fop', action='store',
-                        default='./target/report.fo',
+                        default='../target/report.fo',
                         help="""intermediate fop output file (default:
-                        ./target/report.fo)""")
+                        ../target/report.fo)""")
     parser.add_argument('--fop-binary', action='store',
                         default='/usr/local/bin/fop',
                         help='fop binary (default /usr/local/bin/fop')
     parser.add_argument('-i', '--input', action='store',
-                        default='./source/report.xml',
-                        help="""input file (default:
-                        ./source/report.xml)""")
+                        default='report.xml',
+                        help="""input file (default: report.xml)""")
     parser.add_argument('--saxon', action='store',
                         default='/usr/local/bin/saxon/saxon9he.jar',
                         help="""saxon JAR file (default
                         /usr/local/bin/saxon/saxon9he.jar)""")
     parser.add_argument('-x', '--xslt', action='store',
-                        default='./xslt/generate_report.xsl',
-                        help='input file (default: ./xslt/generate_report.xsl)')
+                        default='../xslt/generate_report.xsl',
+                        help='input file (default: ../xslt/generate_report.xsl)')
     parser.add_argument('-o', '--output', action='store',
-                        default='./target/report-latest.pdf',
+                        default='../target/report-latest.pdf',
                         help="""output file name (default:
-                        ./target/report-latest.pdf""")
+                        ../target/report-latest.pdf""")
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='increase output verbosity')
     parser.add_argument('-w', '--warnings', action='store_true',
