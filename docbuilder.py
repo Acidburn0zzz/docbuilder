@@ -45,16 +45,16 @@ the Free Software Foundation, either version 3 of the License, or
     parser.add_argument('-c', '--clobber', action='store_true',
                         help='overwrite output file if it already exists')
     parser.add_argument('--fop-config', action='store',
-                        default='/usr/local/bin/fop-1.1/conf/rosfop.xconf',
+                        default='/etc/docbuilder/rosfop.xconf',
                         help="""fop configuration file (default
-                        /usr/local/bin/fop-1.1/conf/rosfop.xconf""")
+                        /etc/docbuilder/rosfop.xconf""")
     parser.add_argument('-f', '--fop', action='store',
                         default='./target/report.fo',
                         help="""intermediate fop output file (default:
                         ./target/report.fo)""")
     parser.add_argument('--fop-binary', action='store',
-                        default='/usr/local/bin/fop-1.1/fop',
-                        help='fop binary (default /usr/local/bin/fop-1.1/fop')
+                        default='/usr/local/bin/fop',
+                        help='fop binary (default /usr/local/bin/fop')
     parser.add_argument('-i', '--input', action='store',
                         default='./source/report.xml',
                         help="""input file (default:
