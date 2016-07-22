@@ -129,9 +129,9 @@ def to_fo(options):
            '-s:' + options['input'], '-xsl:' + options['xslt'],
            '-o:' + options['fop'], '-xi']
     if options['INVOICE_NO']:
-        cmd.append('INVOICE_NO:' + options['INVOICE_NO'])
+        cmd.append('-INVOICE_NO:' + options['INVOICE_NO'])
     if options['DATE']:
-        cmd.append('DATE:' + options['DATE'])
+        cmd.append('-DATE:' + options['DATE'])
     process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
     print_output(stdout, stderr)
