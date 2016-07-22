@@ -44,7 +44,7 @@ the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.'''))
     parser.add_argument('-c', '--clobber', action='store_true',
                         help='overwrite output file if it already exists')
-    parser.add_argument('-DATE', action='store',
+    parser.add_argument('-date', action='store',
                         help='the invoice date')
     parser.add_argument('--fop-config', action='store',
                         default='/etc/docbuilder/rosfop.xconf',
@@ -60,7 +60,7 @@ the Free Software Foundation, either version 3 of the License, or
     parser.add_argument('-i', '--input', action='store',
                         default='report.xml',
                         help="""input file (default: report.xml)""")
-    parser.add_argument('-INVOICE_NO', action='store',
+    parser.add_argument('-invoice', action='store',
                         help="""invoice number""")
     parser.add_argument('--saxon', action='store',
                         default='/usr/local/bin/saxon/saxon9he.jar',
@@ -128,10 +128,10 @@ def to_fo(options):
     cmd = ['java', '-jar', options['saxon'],
            '-s:' + options['input'], '-xsl:' + options['xslt'],
            '-o:' + options['fop'], '-xi']
-    if options['INVOICE_NO']:
-        cmd.append('-INVOICE_NO:' + options['INVOICE_NO'])
-    if options['DATE']:
-        cmd.append('-DATE:' + options['DATE'])
+    if options['invoice']:
+        cmd.append('INVOICE_NO=' + options['invoice'])
+    if options['date']:
+        cmd.append('DATE=' + options['date'])
     process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
     print_output(stdout, stderr)
