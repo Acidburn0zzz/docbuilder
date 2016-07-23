@@ -164,7 +164,8 @@ def validate_files(filenames, options):
                 filename.lower().endswith('xml"')):
             if SNIPPETDIR not in filename:
                 if (OFFERTE in filename and options['offer']) or \
-                   (REPORT in filename and not options['no_report']):
+                   (REPORT in filename and not options['no_report'] and \
+                    not TEMPLATEDIR in filename):
                     masters.append(filename)
                 # try:
                 type_result, xml_type = validate_xml(filename, options)
