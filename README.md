@@ -26,11 +26,23 @@ Regardless of your choice, you'll have to configure some things by hand. That's 
 
 ### Tell the Vagrantfile where your repository lives
 * Edit the file Vagrantfile.
-In the default Vagrantfile, as an example the local Windows folder Y:/ is mounted to the Vagrant folder /work.
+In the default Vagrantfile a number of example mappings are shown. Add / uncomment a mapping that maps the local location of a PenText repository, to a path on docbuilder.
 
-Replace the first part (Y:/) with your local path, pointig to a repository containing a pentest.
+Example for Windows, where the repository can be found under R:/
 
-Next, bring the vagrant machine up by starting a command shell/terminal window and issuing the command
+`config.vm.synced_folder "R:/", "/repository"`
+
+Example for mounting a Unix-like filesystem folder:
+`config.vm.synced_folder "/home/user/my/repository", "/work"`
+
+
+#### Import the Vagrant box
+Next, import the Vagrant box:
+`vagrant box add docbuilder.box`
+
+That's it...
+
+bring the vagrant machine up by starting a command shell/terminal window and issuing the command
 `vagrant up`
 
 If everything worked well, the machine is now up and running in the background.
