@@ -56,7 +56,7 @@ cd to the Vagrant folder that you specified for the repository (for example /wor
 
 Next, execute the build command
 `docbuilder.py`
-This should generate a PDF file from the sources in the repository folder, and will create the PDF output file as `Report/target/latest.pdf`
+This should generate a PDF file from the sources in the repository folder, and will create the PDF output file as `target/report-latest.pdf`
 Specify the -c flag to overwrite an existing file, or -v to see debug messages of the build process. Specifying -h will show some other options.
 
 
