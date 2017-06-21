@@ -3,7 +3,7 @@
 # Part of docbuilder, the official PenText toolchain
 # https://pentext.com
 #
-# version 0.2
+# version 0.3
 
 # The pathname on docbuilder where this parent directory can be found
 VAGRANTMAPPING=projects
@@ -30,7 +30,7 @@ $(SSH-CONFIG):
 clean:
 	rm $(SSH-CONFIG)
 
-test: test-box test-status test-connection
+test: test-box test-status test-connection test-path
 
 test-box:
 	@echo Verifying whether docbuilder exists as box...
@@ -45,4 +45,9 @@ test-status:
 test-connection: $(SSH-CONFIG)
 	@echo Verifying connection to the box...
 	@ssh -F $(SSH-CONFIG) docbuilder id || exit -1
+	@echo OK
+
+test-path: $(SSH-CONFIG)
+	@echo Verifying paths...
+	@ssh -F $(SSH-CONFIG) docbuilder "ls /$(VAGRANTMAPPING)/$(SOURCE) 1>/dev/null" || exit -1
 	@echo OK
