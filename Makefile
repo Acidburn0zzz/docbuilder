@@ -3,7 +3,7 @@
 # Part of docbuilder, the official PenText toolchain
 # https://pentext.com
 #
-# version 0.3
+# version 1.0
 
 # The pathname on docbuilder where this parent directory can be found
 VAGRANTMAPPING=projects
@@ -14,6 +14,7 @@ TARGET=target/report-latest.pdf
 
 SSH-CONFIG=docbuilder.ssh
 VAGRANTID=$(shell vagrant global-status|awk '/docbuilder/{print $$1}')
+VAGRANTSTATUS=$(shell vagrant global-status|awk '/docbuilder/{print $$4}')
 
 .PHONY: clean $(TARGET) test
 
@@ -44,7 +45,7 @@ test-status:
 
 test-connection: $(SSH-CONFIG)
 	@echo Verifying connection to the box...
-	@ssh -F $(SSH-CONFIG) docbuilder id || exit -1
+	@ssh -F $(SSH-CONFIG) docbuilder id 1>/dev/null || exit -1
 	@echo OK
 
 test-path: $(SSH-CONFIG)
