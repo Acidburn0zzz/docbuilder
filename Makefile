@@ -3,7 +3,7 @@
 # Part of docbuilder, the official PenText toolchain
 # https://pentext.com
 #
-# version 1.0
+# version 1.1
 
 # The pathname on docbuilder where this parent directory can be found
 VAGRANTMAPPING=projects
@@ -16,20 +16,23 @@ SSH-CONFIG=docbuilder.ssh
 VAGRANTID=$(shell vagrant global-status|awk '/docbuilder/{print $$1}')
 VAGRANTSTATUS=$(shell vagrant global-status|awk '/docbuilder/{print $$4}')
 
-.PHONY: clean $(TARGET) test
+.PHONY: clean $(TARGET) reload test up
 
 all: pdf
 
 pdf: $(TARGET)
 
-$(TARGET): $(SSH-CONFIG)
-	@ssh -F $(SSH-CONFIG) docbuilder "cd /$(VAGRANTMAPPING)/$(SOURCE)/source && docbuilder.py -v -c"
-
 $(SSH-CONFIG):
 	@vagrant ssh-config "$(VAGRANTID)" > $(SSH-CONFIG)
 
+$(TARGET): $(SSH-CONFIG)
+	@ssh -F $(SSH-CONFIG) docbuilder "cd /$(VAGRANTMAPPING)/$(SOURCE)/source && docbuilder.py -v -c"
+
 clean:
 	rm $(SSH-CONFIG)
+
+reload:
+	@vagrant reload "$(VAGRANTID)"
 
 test: test-box test-status test-connection test-path
 
@@ -52,3 +55,6 @@ test-path: $(SSH-CONFIG)
 	@echo Verifying paths...
 	@ssh -F $(SSH-CONFIG) docbuilder "ls /$(VAGRANTMAPPING)/$(SOURCE) 1>/dev/null" || exit -1
 	@echo OK
+
+up:
+	@vagrant up "$(VAGRANTID)"
