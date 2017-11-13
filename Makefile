@@ -3,31 +3,46 @@
 # Part of docbuilder, the official PenText toolchain
 # https://pentext.com
 #
-# version 1.2
+# version 1.6
 
 # The pathname on docbuilder where this parent directory can be found
-VAGRANTMAPPING=repos
+# Note that this can be supplied as parameter on the command line,
+# e.g. make VAGRANTMAPPING=mymapping
+VAGRANTMAPPING:="repos"
 
 SHELL=/usr/bin/bash
 SOURCE=$(shell echo $${PWD\#\#*/})
-TARGET=target/report-latest.pdf
+REPORT=target/report-latest.pdf
+QUOTE=target/offerte-latest.pdf
 SUMMARY=target/summary-latest.pdf
 
 SSH-CONFIG=docbuilder.ssh
 VAGRANTID=$(shell vagrant global-status|awk '/docbuilder/{print $$1}')
 VAGRANTSTATUS=$(shell vagrant global-status|awk '/docbuilder/{print $$4}')
 
-.PHONY: clean $(TARGET) $(SUMMARY) reload test up
+# Targets that will not generate specific files
+.PHONY: all clean $(REPORT) $(SUMMARY) reload test up
 
-all: pdf
+all: report quote summary
 
-pdf: $(TARGET)
+# symlink
+offerte: quote
+
+quote: $(QUOTE)
+
+# symlink
+pdf: report
+
+report: $(REPORT)
 
 verbose: $(SSH-CONFIG)
 	@ssh -F $(SSH-CONFIG) docbuilder "cd /$(VAGRANTMAPPING)/$(SOURCE)/source && docbuilder.py -cv"
 
-$(TARGET): $(SSH-CONFIG)
+$(REPORT): $(SSH-CONFIG)
 	@ssh -F $(SSH-CONFIG) docbuilder "cd /$(VAGRANTMAPPING)/$(SOURCE)/source && docbuilder.py -c"
+
+$(QUOTE): $(SSH-CONFIG)
+	@ssh -F $(SSH-CONFIG) docbuilder "cd /$(VAGRANTMAPPING)/$(SOURCE)/source && docbuilder.py -i offerte.xml -o ../target/offerte-latest.pdf -x ../xslt/generate_offerte.xsl -c"
 
 summary: $(SUMMARY)
 
@@ -39,7 +54,8 @@ $(SSH-CONFIG):
 	@if [ $$? -ne 0 ]; then echo "SSH not working (try 'make reload')"; exit -1; fi
 
 clean:
-	rm $(SSH-CONFIG)
+	@-rm $(SSH-CONFIG) $(QUOTE) $(REPORT) 2>/dev/null || true
+	@echo "Removed $(SSH-CONFIG) $(QUOTE) $(REPORT)"
 
 reload:
 	@vagrant reload "$(VAGRANTID)"
