@@ -1,9 +1,9 @@
-# GPLv3 (c) 2017 Peter Mosmans [Radically Open Security]
+# GPLv3 (c) 2017-2018 Peter Mosmans [Radically Open Security]
 #
 # Part of docbuilder, the official PenText toolchain
 # https://pentext.com
 #
-# version 1.6
+# version 1.8
 
 # The pathname on docbuilder where this parent directory can be found
 # Note that this can be supplied as parameter on the command line,
@@ -16,12 +16,12 @@ REPORT=target/report-latest.pdf
 QUOTE=target/offerte-latest.pdf
 SUMMARY=target/summary-latest.pdf
 
-SSH-CONFIG=docbuilder.ssh
+SSH-CONFIG=.docbuilder.ssh
 VAGRANTID=$(shell vagrant global-status|awk '/docbuilder/{print $$1}')
 VAGRANTSTATUS=$(shell vagrant global-status|awk '/docbuilder/{print $$4}')
 
 # Targets that will not generate specific files
-.PHONY: all clean $(REPORT) $(SUMMARY) reload test up
+.PHONY: all clean $(QUOTE) reload $(REPORT) $(SUMMARY) test up
 
 all: report quote summary
 
@@ -53,9 +53,13 @@ $(SSH-CONFIG):
 	@vagrant ssh-config "$(VAGRANTID)" > $(SSH-CONFIG)
 	@if [ $$? -ne 0 ]; then echo "SSH not working (try 'make reload')"; exit -1; fi
 
-clean:
-	@-rm $(SSH-CONFIG) $(QUOTE) $(REPORT) 2>/dev/null || true
-	@echo "Removed $(SSH-CONFIG) $(QUOTE) $(REPORT)"
+clean: clear-connection
+	@-rm $(QUOTE) $(REPORT) 2>/dev/null || true
+	@echo "Removed $(QUOTE) $(REPORT)"
+
+clear-connection:
+	@-rm $(SSH-CONFIG) 2>/dev/null || true
+	@echo "Removed $(SSH-CONFIG)"
 
 reload:
 	@vagrant reload "$(VAGRANTID)"
